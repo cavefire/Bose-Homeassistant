@@ -1,0 +1,17 @@
+{
+  "domain": "bose",
+  "name": "Bose",
+  "codeowners": [
+    "@cavefire"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/cavefire/Bose-Homeassistant",
+  "homekit": {},
+  "iot_class": "local_polling",
+  "requirements": [
+    "pybose"
+  ],
+  "ssdp": [],
+  "zeroconf": []
+}
