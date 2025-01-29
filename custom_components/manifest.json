@@ -10,7 +10,7 @@
   "homekit": {},
   "iot_class": "local_polling",
   "requirements": [
-    "pybose"
+    "pybose==0.0.3"
   ],
   "ssdp": [],
   "zeroconf": []
