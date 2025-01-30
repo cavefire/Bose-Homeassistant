@@ -1,5 +1,7 @@
 """Support for Bose media player."""
 
+import logging
+
 from pybose.BoseResponse import ContentNowPlaying
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -41,9 +43,13 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._state = MediaPlayerState.OFF
         self._volume_level = 0.5
         self._muted = False
-        self._track_info = None
         self._source = None
         self._album_art = None
+        self._media_title = None
+        self._media_artist = None
+        self._media_album_name = None
+        self._media_duration = None
+        self._media_position = None
 
         speaker.attach_receiver(self.parse_message)
 
@@ -52,6 +58,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
         resource = data.get("header", {}).get("resource")
         body = data.get("body", {})
+        logging.info("Received message: %s", resource)
         if resource == "/audio/volume":
             self._volume_level = body.get("value", 0) / 100
             self._muted = self.volume_level == 0
@@ -60,62 +67,75 @@ class BoseMediaPlayer(MediaPlayerEntity):
             self._state = MediaPlayerState.OFF if not self._is_on else self._state
         elif resource == "/content/nowPlaying":
             data = ContentNowPlaying(body)
-            if data.metadata:
-                self._track_info = f"{data.metadata.artist} - {data.metadata.trackName}"
-                self._album_art = data.track.contentItem.containerArt
-                self._source = data.source.sourceDisplayName
 
-                self._state = (
-                    MediaPlayerState.PAUSED
-                    if data.state.status == "PAUSED"
-                    else MediaPlayerState.PLAYING
-                )
-            else:
-                self._track_info = None
-                self._album_art = None
-                self._source = None
+            try:
+                match data.state.status:
+                    case "PLAY":
+                        self._state = MediaPlayerState.PLAYING
+                    case "PAUSED":
+                        self._state = MediaPlayerState.PAUSED
+                    case "BUFFERING":
+                        self._state = MediaPlayerState.BUFFERING
+                    case _:
+                        logging.warning("State not implemented: %s", data.state.status)
+                        self._state = MediaPlayerState.ON
+            except AttributeError:
                 self._state = MediaPlayerState.ON
+
+            self._source = data.source.sourceDisplayName if data.source else None
+
+            try:
+                self._media_title = (
+                    data.metadata.trackName
+                    if data.metadata.trackName
+                    else self._media_title
+                )
+                self._media_artist = (
+                    data.metadata.artist if data.metadata.artist else self._media_artist
+                )
+                self._media_album_name = (
+                    data.metadata.album
+                    if data.metadata.album
+                    else self._media_album_name
+                )
+                self._media_duration = (
+                    data.metadata.duration
+                    if data.metadata.duration
+                    else self._media_duration
+                )
+                self._media_position = (
+                    data.state.timeIntoTrack
+                    if data.state.timeIntoTrack
+                    else self._media_position
+                )
+            except AttributeError:
+                if self._state not in (
+                    MediaPlayerState.PAUSED,
+                    MediaPlayerState.BUFFERING,
+                ):
+                    self._media_title = None
+                    self._media_artist = None
+                    self._media_album_name = None
+                    self._media_duration = None
+                    self._media_position = None
+
+            try:
+                self._album_art = (
+                    data.track.contentItem.containerArt
+                    if data.track.contentItem
+                    else self._album_art
+                )
+            except AttributeError:
+                if self._state not in (
+                    MediaPlayerState.PAUSED,
+                    MediaPlayerState.BUFFERING,
+                ):
+                    self._album_art = None
+
+        self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
-        try:
-            # Get power state
-            power_state = await self.speaker.get_power_state()
-            self._is_on = power_state.get("power") == "ON"
-
-            if not self._is_on:
-                self._state = MediaPlayerState.OFF
-                return
-
-            # Get volume
-            volume_info = await self.speaker.get_audio_volume()
-            self._volume_level = volume_info.value / 100
-            self._muted = volume_info.muted
-
-            # Get track info
-            track_info = await self.speaker.get_now_playing()
-            if track_info.metadata:
-                self._track_info = (
-                    f"{track_info.metadata.artist} - {track_info.metadata.trackName}"
-                )
-                self._album_art = track_info.track.contentItem.containerArt
-                self._source = track_info.source.sourceDisplayName
-
-                self._state = (
-                    MediaPlayerState.PAUSED
-                    if track_info.state.status == "PAUSED"
-                    else MediaPlayerState.PLAYING
-                )
-
-            else:
-                self._track_info = None
-                self._album_art = None
-                self._source = None
-                self._state = MediaPlayerState.ON
-
-        except Exception:  # noqa: BLE001
-            self._state = MediaPlayerState.OFF
-            self._is_on = False
 
     async def async_turn_on(self) -> None:
         """Turn on the speaker."""
@@ -182,7 +202,27 @@ class BoseMediaPlayer(MediaPlayerEntity):
     @property
     def media_title(self) -> str:
         """Return the title of current playing media."""
-        return self._track_info
+        return self._media_title
+
+    @property
+    def media_artist(self) -> str:
+        """Return the artist of current playing media (Music track only)."""
+        return self._media_artist
+
+    @property
+    def media_album_name(self) -> str:
+        """Return the album of current playing media (Music track only)."""
+        return self._media_album_name
+
+    @property
+    def media_duration(self) -> int:
+        """Return the duration of current playing media in seconds."""
+        return self._media_duration
+
+    @property
+    def media_position(self) -> int:
+        """Return the position of current playing media in seconds."""
+        return self._media_position
 
     @property
     def media_image_url(self) -> str:
