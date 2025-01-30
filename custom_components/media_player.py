@@ -2,7 +2,7 @@
 
 import logging
 
-from pybose.BoseResponse import ContentNowPlaying
+from pybose.BoseResponse import ContentNowPlaying, AudioVolume
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.media_player import (
@@ -60,82 +60,106 @@ class BoseMediaPlayer(MediaPlayerEntity):
         body = data.get("body", {})
         logging.info("Received message: %s", resource)
         if resource == "/audio/volume":
-            self._volume_level = body.get("value", 0) / 100
-            self._muted = self.volume_level == 0
+            self._parse_audio_volume(AudioVolume(body))
         elif resource == "/system/power/control":
             self._is_on = body.get("power") == "ON"
             self._state = MediaPlayerState.OFF if not self._is_on else self._state
         elif resource == "/content/nowPlaying":
-            data = ContentNowPlaying(body)
-
-            try:
-                match data.state.status:
-                    case "PLAY":
-                        self._state = MediaPlayerState.PLAYING
-                    case "PAUSED":
-                        self._state = MediaPlayerState.PAUSED
-                    case "BUFFERING":
-                        self._state = MediaPlayerState.BUFFERING
-                    case _:
-                        logging.warning("State not implemented: %s", data.state.status)
-                        self._state = MediaPlayerState.ON
-            except AttributeError:
-                self._state = MediaPlayerState.ON
-
-            self._source = data.source.sourceDisplayName if data.source else None
-
-            try:
-                self._media_title = (
-                    data.metadata.trackName
-                    if data.metadata.trackName
-                    else self._media_title
-                )
-                self._media_artist = (
-                    data.metadata.artist if data.metadata.artist else self._media_artist
-                )
-                self._media_album_name = (
-                    data.metadata.album
-                    if data.metadata.album
-                    else self._media_album_name
-                )
-                self._media_duration = (
-                    data.metadata.duration
-                    if data.metadata.duration
-                    else self._media_duration
-                )
-                self._media_position = (
-                    data.state.timeIntoTrack
-                    if data.state.timeIntoTrack
-                    else self._media_position
-                )
-            except AttributeError:
-                if self._state not in (
-                    MediaPlayerState.PAUSED,
-                    MediaPlayerState.BUFFERING,
-                ):
-                    self._media_title = None
-                    self._media_artist = None
-                    self._media_album_name = None
-                    self._media_duration = None
-                    self._media_position = None
-
-            try:
-                self._album_art = (
-                    data.track.contentItem.containerArt
-                    if data.track.contentItem
-                    else self._album_art
-                )
-            except AttributeError:
-                if self._state not in (
-                    MediaPlayerState.PAUSED,
-                    MediaPlayerState.BUFFERING,
-                ):
-                    self._album_art = None
+            self._parse_now_playing(ContentNowPlaying(body))
 
         self.async_write_ha_state()
 
+    def _parse_audio_volume(self, data: AudioVolume):
+        self._volume_level = data.value / 100
+        # TODO: Mute is implemented in another way?
+        self._muted = self.volume_level == 0
+
+    def _parse_now_playing(self, data: ContentNowPlaying):
+        try:
+            match data.state.status:
+                case "PLAY":
+                    self._state = MediaPlayerState.PLAYING
+                case "PAUSED":
+                    self._state = MediaPlayerState.PAUSED
+                case "BUFFERING":
+                    self._state = MediaPlayerState.BUFFERING
+                case "STOPPED":
+                    self._state = MediaPlayerState.IDLE
+                case _:
+                    logging.warning("State not implemented: %s", data.state.status)
+                    self._state = MediaPlayerState.ON
+        except AttributeError:
+            self._state = MediaPlayerState.ON
+
+        self._source = data.source.sourceDisplayName if data.source else None
+
+        try:
+            self._media_title = (
+                data.metadata.trackName
+                if data.metadata.trackName
+                else self._media_title
+            )
+            self._media_artist = (
+                data.metadata.artist if data.metadata.artist else self._media_artist
+            )
+            self._media_album_name = (
+                data.metadata.album if data.metadata.album else self._media_album_name
+            )
+            self._media_duration = (
+                data.metadata.duration
+                if data.metadata.duration
+                else self._media_duration
+            )
+            self._media_position = (
+                data.state.timeIntoTrack
+                if data.state.timeIntoTrack
+                else self._media_position
+            )
+        except AttributeError:
+            if self._state not in (
+                MediaPlayerState.PAUSED,
+                MediaPlayerState.BUFFERING,
+            ):
+                self._media_title = None
+                self._media_artist = None
+                self._media_album_name = None
+                self._media_duration = None
+                self._media_position = None
+
+        try:
+            if (
+                data.container.contentItem.source == "PRODUCT"
+                and data.container.contentItem.sourceAccount == "TV"
+            ):
+                self._source = "TV"
+                self._media_title = "TV"
+                self._media_album_name = None
+                self._media_artist = None
+                self._media_duration = None
+                self._media_position = None
+        except AttributeError:
+            pass
+
+        try:
+            self._album_art = (
+                data.track.contentItem.containerArt
+                if data.track.contentItem
+                else self._album_art
+            )
+        except AttributeError:
+            if self._state not in (
+                MediaPlayerState.PAUSED,
+                MediaPlayerState.BUFFERING,
+            ):
+                self._album_art = None
+
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
+        data = await self.speaker.get_now_playing()
+        self._parse_now_playing(data)
+
+        data = await self.speaker.get_audio_volume()
+        self._parse_audio_volume(data)
 
     async def async_turn_on(self) -> None:
         """Turn on the speaker."""
