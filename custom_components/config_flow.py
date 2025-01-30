@@ -95,7 +95,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Show the form for manual IP input
         data_schema = vol.Schema(
             {
-                vol.Required("manual_ip", default="10.0.30.30"): str,
+                vol.Required("manual_ip"): str,
             }
         )
 
@@ -125,8 +125,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_control_token(self, email, password):
         """Authenticate and retrieve the control token."""
         bose_auth = BoseAuth()
-        control_token = bose_auth.getControlToken(email, password)
-        return control_token["access_token"]
+        control_token = bose_auth.getControlToken(email, password, forceNew=True)
+        return control_token["refresh_token"]
 
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""

@@ -1,8 +1,10 @@
 """Support for Bose power switch."""
 
+import logging
 from typing import Any
 
 from pybose.BoseSpeaker import BoseSpeaker
+from pybose.BoseResponse import ContentNowPlaying
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -25,36 +27,53 @@ async def async_setup_entry(
 
     # Add switch entity with device info
     async_add_entities(
-        [BosePowerSwitch(speaker, system_info, config_entry)], update_before_add=True
+        [BoseTVSwitch(speaker, system_info, config_entry)], update_before_add=True
     )
 
 
-class BosePowerSwitch(SwitchEntity):
+class BoseTVSwitch(SwitchEntity):
     """Representation of a Bose device as a switch."""
 
     def __init__(self, speaker: BoseSpeaker, speaker_info, config_entry) -> None:
         """Initialize the switch."""
         self.speaker = speaker
-        self._name = f"{speaker_info.name} Power"
-        self._device_id = config_entry.data["guid"]
-        self._is_on = False  # Default to off
+        self._name = "Source TV"
+        self._is_on_tv = False
+        self.speaker_info = speaker_info
+        self.config_entry = config_entry
+
+        self.speaker.attach_receiver(self._parse_message)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the speaker."""
-        await self.speaker.set_power_state(True)
-        self._is_on = True
+        await self.speaker.switch_tv_source()
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the speaker."""
         await self.speaker.set_power_state(False)
-        self._is_on = False
         self.async_write_ha_state()
+
+    def _parse_message(self, data):
+        """Parse the message from the speaker."""
+        if data.get("header", {}).get("resource") == "/content/nowPlaying":
+            self._parse_now_playing(ContentNowPlaying(data.get("body")))
+
+    def _parse_now_playing(self, data: ContentNowPlaying):
+        self._is_on_tv = (
+            data.container.contentItem.source == "PRODUCT"
+            and data.container.contentItem.sourceAccount == "TV"
+        )
+
+    async def async_update(self) -> None:
+        """Update the switch state."""
+        now_playing = await self.speaker.get_now_playing()
+        self._parse_now_playing(now_playing)
 
     @property
     def is_on(self) -> bool:
         """Return if the device is on."""
-        return self._is_on
+        return self._is_on_tv
 
     @property
     def name(self) -> str:
@@ -64,13 +83,15 @@ class BosePowerSwitch(SwitchEntity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID for this entity."""
-        return f"{self._device_id}-power"
+        return f"{self.config_entry.data['guid']}_tv_source_switch"
 
     @property
     def device_info(self):
-        """Return device information for Home Assistant integration."""
+        """Return device information about this entity."""
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
+            "name": self.speaker_info.name,
             "manufacturer": "Bose",
-            "name": self._name,
+            "model": self.speaker_info.productName,
+            "sw_version": self.speaker_info.softwareVersion,
         }

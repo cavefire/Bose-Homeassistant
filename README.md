@@ -32,8 +32,9 @@ So this integration is making use of `pybose`'s authentication. You can find mor
 - [x] See current volume
 - [x] See currently playing media (image and title)
 - [ ] Control power
-- [ ] Control media (play, pause, next, previous)
-- [ ] Control source (TV / Bluetooth / ...)
+- [x] Control media (play, pause, next, previous)
+- [x] Switch to TV source
+- [ ] Control bluetooth 
 - [ ] Audio setup (bass, treble, ...)
 - [ ] Configure bass module / surround speakers
 - [ ] Group speakers
