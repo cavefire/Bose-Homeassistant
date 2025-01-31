@@ -39,6 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     speaker = await connect_to_bose(config_entry)
     system_info = await speaker.get_system_info()
+    capabilities = await speaker.get_capabilities()
     await speaker.subscribe()
 
     # Register device in Home Assistant
@@ -57,10 +58,12 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     # Store the speaker object separately
     hass.data[DOMAIN][config_entry.entry_id]["speaker"] = speaker
+    hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
+    hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
-        config_entry, ["media_player", "switch"]
+        config_entry, ["media_player", "switch", "select", "number"]
     )
     return True
 

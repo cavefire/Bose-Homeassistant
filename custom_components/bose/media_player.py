@@ -2,7 +2,7 @@
 
 import logging
 
-from pybose.BoseResponse import ContentNowPlaying, AudioVolume
+from pybose.BoseResponse import AudioVolume, ContentNowPlaying
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.media_player import (
@@ -24,9 +24,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Bose media player."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
-
-    # Fetch system info
-    system_info = await speaker.get_system_info()
+    system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
 
     async_add_entities([BoseMediaPlayer(speaker, system_info)], update_before_add=True)
 
