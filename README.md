@@ -7,6 +7,15 @@ The speakers are controlled 100% locally. However, a cloud account is needed and
 
 ## Installation
 
+### Using HACS
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=Bose-Homeassistant&owner=cavefire)
+
+1. Click the link above to open the integration in HACS.
+2. Install the integration.
+
+### Manual Installation
+
 1. Clone or download this repository.
 2. Copy the `custom_components/bose` directory to your Home Assistant `config` directory.
 3. Restart Home Assistant.
