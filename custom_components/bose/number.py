@@ -18,6 +18,13 @@ ADJUSTABLE_PARAMETERS = [
     {"display": "Bass", "path": "/audio/bass", "option": "bass"},
     {"display": "Treble", "path": "/audio/treble", "option": "treble"},
     {"display": "Center", "path": "/audio/center", "option": "center"},
+    {
+        "display": "Subwoofer Gain",
+        "path": "/audio/subwooferGain",
+        "option": "subwooferGain",
+    },
+    {"display": "Height", "path": "/audio/height", "option": "height"},
+    {"display": "AV Sync", "path": "/audio/avSync", "option": "avSync"},
 ]
 
 

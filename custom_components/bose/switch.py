@@ -1,10 +1,9 @@
 """Support for Bose power switch."""
 
-import logging
 from typing import Any
 
-from pybose.BoseSpeaker import BoseSpeaker
 from pybose.BoseResponse import ContentNowPlaying
+from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry

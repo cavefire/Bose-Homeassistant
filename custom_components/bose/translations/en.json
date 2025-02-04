@@ -4,16 +4,17 @@
             "already_configured": "Device is already configured"
         },
         "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "auth_failed": "Could not authenticate with your BOSE account. Check your username and password.",
+            "connect_failed": "Could not connect to the speaker. Check if the speaker is powered on, connected and the IP address is correct.",
+            "info_failed": "Connection to device made, but failed to fetch speaker info. Check your logs for more information."
         },
         "step": {
             "user": {
                 "data": {
-                    "host": "Host",
-                    "password": "Password",
-                    "username": "Username"
+                    "device": "Select your BOSE device",
+                    "mail": "BOSE Account E-Mail Address",
+                    "manual_ip": "Enter the IP address of your BOSE device",
+                    "password": "BOSE Account Password"
                 }
             }
         }

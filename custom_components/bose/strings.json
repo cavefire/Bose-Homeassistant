@@ -1,21 +1,22 @@
 {
   "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "info_failed": "Connection to device made, but failed to fetch speaker info. Check your logs for more information.",
+      "auth_failed": "Could not authenticate with your BOSE account. Check your username and password.",
+      "connect_failed": "Could not connect to the speaker. Check if the speaker is powered on, connected and the IP address is correct."
+    },
     "step": {
       "user": {
         "data": {
-          "host": "[%key:common::config_flow::data::host%]",
-          "username": "[%key:common::config_flow::data::username%]",
-          "password": "[%key:common::config_flow::data::password%]"
+          "mail": "BOSE Account E-Mail Address",
+          "password": "BOSE Account Password",
+          "device": "Select your BOSE device",
+          "manual_ip": "Enter the IP address of your BOSE device"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
-      "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
-      "unknown": "[%key:common::config_flow::error::unknown%]"
-    },
-    "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
     }
   }
 }

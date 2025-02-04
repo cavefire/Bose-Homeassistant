@@ -68,14 +68,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=data_schema,
-            errors=errors,
-            description_placeholders={
-                "note": (
-                    "If your device is not discovered, you can select 'Enter IP Manually' to enter it on the next page."
-                )
-            },
+            step_id="user", data_schema=data_schema, errors=errors
         )
 
     async def async_step_manual_ip(self, user_input=None) -> ConfigFlowResult:
@@ -117,7 +110,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         def _run_discovery():
             """Run the blocking discovery method."""
             discovery = BoseDiscovery(zeroconf=zeroconf)
-            devices = discovery.discover_devices()
+            devices = discovery.discover_devices(timeout=1)
             return [device["IP"] for device in devices]
 
         return await self.hass.async_add_executor_job(_run_discovery)
@@ -130,13 +123,25 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
-        access_token = await self.hass.async_add_executor_job(
-            self._get_control_token, self.mail, self.password
-        )
+        try:
+            access_token = await self.hass.async_add_executor_job(
+                self._get_control_token, self.mail, self.password
+            )
+            if not access_token:
+                return self.async_abort(reason="auth_failed")
+        except Exception as e:
+            logging.exception("Failed to get control token", exc_info=e)
+            return self.async_abort(reason="auth_failed")
 
-        speaker = BoseSpeaker(control_token=access_token, host=ip)
-        await speaker.connect()
-        system_info = await speaker.get_system_info()
+        try:
+            speaker = BoseSpeaker(control_token=access_token, host=ip)
+            await speaker.connect()
+            system_info = await speaker.get_system_info()
+            if not system_info:
+                return self.async_abort(reason="info_failed")
+        except Exception as e:
+            logging.exception("Failed to get system info", exc_info=e)
+            return self.async_abort(reason="connect_failed")
 
         guid = speaker.get_device_id()
 

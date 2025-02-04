@@ -1,6 +1,7 @@
 """The Bose component."""
 
 from pybose.BoseAuth import BoseAuth
+from pybose.BoseResponse import Accessories
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
@@ -40,6 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     speaker = await connect_to_bose(config_entry)
     system_info = await speaker.get_system_info()
     capabilities = await speaker.get_capabilities()
+    accessories = await speaker.get_accessories()
     await speaker.subscribe()
 
     # Register device in Home Assistant
@@ -60,12 +62,32 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["speaker"] = speaker
     hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
+    hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
+
+    await registerAccessories(hass, config_entry, accessories)
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
-        config_entry, ["media_player", "switch", "select", "number"]
+        config_entry, ["media_player", "select", "number"]
     )
     return True
+
+
+async def registerAccessories(
+    hass: HomeAssistant, config_entry, accessories: Accessories
+):
+    """Register accessories in Home Assistant."""
+    device_registry = dr.async_get(hass)
+    for accessory in (accessories.subs) + accessories.rears:
+        device_registry.async_get_or_create(
+            config_entry_id=config_entry.entry_id,
+            identifiers={(DOMAIN, accessory.serialnum)},
+            manufacturer="Bose",
+            name=accessory.type.replace("_", " "),
+            model=accessory.type.replace("_", " "),
+            sw_version=accessory.version,
+            via_device=(DOMAIN, config_entry.data["guid"]),
+        )
 
 
 def _check_token_validity(access_token: str) -> bool:
