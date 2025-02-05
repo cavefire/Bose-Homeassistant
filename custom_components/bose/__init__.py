@@ -1,11 +1,13 @@
 """The Bose component."""
 
+import json
+
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseResponse import Accessories
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN
@@ -69,6 +71,61 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
         config_entry, ["media_player", "select", "number"]
+    )
+    return True
+
+
+def setup(hass: HomeAssistant, config):
+    async def handle_custom_request(call: ServiceCall) -> None:
+        # Extract device_id from target
+        ha_device_ids = call.data.get("device_id", [])  # Always returns a list
+        if not ha_device_ids:
+            raise ValueError("No valid target device provided.")
+
+        ha_device_id = ha_device_ids[
+            0
+        ]  # Take the first device in case of multiple selections
+
+        resource = call.data["resource"]
+        method = call.data["method"]
+        body = call.data.get("body", {})
+
+        # Find the matching speaker instance based on Home Assistant device_id
+        device_registry = dr.async_get(hass)
+        device_entry = device_registry.async_get(ha_device_id)
+
+        if not device_entry:
+            raise ValueError(
+                f"No device found in Home Assistant for device_id: {ha_device_id}"
+            )
+
+        device_registry = dr.async_get(hass)
+        speaker = hass.data[DOMAIN][
+            device_registry.async_get(ha_device_id).primary_config_entry
+        ]["speaker"]
+
+        if not speaker:
+            raise ValueError(
+                f"No speaker found for Home Assistant device_id: {ha_device_id}"
+            )
+
+        try:
+            response = await speaker._request(resource, method, body)  # noqa: SLF001
+            return {
+                "summary": "Successfully sent request to Bose speaker",
+                "description": json.dumps(response, indent=2),
+            }
+        except Exception as e:
+            return {
+                "summary": "Failed to send request to Bose speaker",
+                "description": str(e),
+            }
+
+    hass.services.register(
+        DOMAIN,
+        "send_custom_request",
+        handle_custom_request,
+        supports_response=SupportsResponse.ONLY,
     )
     return True
 

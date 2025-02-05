@@ -24,6 +24,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.discovered_ips = []  # List to store discovered IPs
         self.mail = None
         self.password = None
+        self._access_token = None
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
@@ -33,17 +34,21 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.mail = user_input["mail"]
             self.password = user_input["password"]
 
-            if user_input.get("device") == "manual" or not user_input.get("device"):
-                # Transition to the manual IP step
-                return await self.async_step_manual_ip()
+            self._access_token = await self.hass.async_add_executor_job(
+                self._get_control_token, self.mail, self.password
+            )
+            if self._access_token:
+                if user_input.get("device") == "manual" or not user_input.get("device"):
+                    return await self.async_step_manual_ip()
 
-            # User selected a discovered IP
-            ip = user_input["device"]
-            try:
-                return await self._get_device_info(self.mail, self.password, ip)
-
-            except Exception as e:
-                logging.exception("Unexpected error", exc_info=e)
+                # User selected a discovered IP
+                ip = user_input["device"]
+                try:
+                    return await self._get_device_info(self.mail, self.password, ip)
+                except Exception as e:
+                    logging.exception("Unexpected error", exc_info=e)
+                    errors["base"] = "auth_failed"
+            else:
                 errors["base"] = "auth_failed"
 
         # Perform discovery to populate the dropdown
@@ -80,7 +85,6 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 return await self._get_device_info(self.mail, self.password, ip)
-
             except Exception as e:
                 logging.exception("Unexpected error", exc_info=e)
                 errors["base"] = "auth_failed"
@@ -117,24 +121,18 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def _get_control_token(self, email, password):
         """Authenticate and retrieve the control token."""
-        bose_auth = BoseAuth()
-        control_token = bose_auth.getControlToken(email, password, forceNew=True)
-        return control_token["refresh_token"]
+        try:
+            bose_auth = BoseAuth()
+            control_token = bose_auth.getControlToken(email, password, forceNew=True)
+            return control_token["refresh_token"]
+        except Exception as e:
+            logging.exception("Failed to get control token", exc_info=e)
+            return None
 
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
         try:
-            access_token = await self.hass.async_add_executor_job(
-                self._get_control_token, self.mail, self.password
-            )
-            if not access_token:
-                return self.async_abort(reason="auth_failed")
-        except Exception as e:
-            logging.exception("Failed to get control token", exc_info=e)
-            return self.async_abort(reason="auth_failed")
-
-        try:
-            speaker = BoseSpeaker(control_token=access_token, host=ip)
+            speaker = BoseSpeaker(control_token=self._access_token, host=ip)
             await speaker.connect()
             system_info = await speaker.get_system_info()
             if not system_info:
@@ -151,7 +149,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "mail": self.mail,
                 "password": self.password,
                 "ip": ip,
-                "access_token": access_token,
+                "access_token": self._access_token,
                 "guid": guid,
                 "serial": system_info.serialNumber,
                 "name": system_info.name,

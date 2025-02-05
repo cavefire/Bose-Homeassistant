@@ -1,0 +1,30 @@
+send_custom_request:
+  name: Send Custom Request
+  description: Send a direct request to a Bose speaker.
+  target:
+    device:
+      integration: bose
+  fields:
+    resource:
+      required: true
+      example: '/system/info'
+      selector:
+        text:
+      description: 'The API resource path to request (e.g., `/system/info`).'
+    method:
+      required: true
+      example: 'GET'
+      selector:
+        select:
+          options:
+            - 'GET'
+            - 'POST'
+            - 'PUT'
+            - 'DELETE'
+      description: 'The HTTP method to use.'
+    body:
+      required: false
+      example: "{'value': 50}"
+      selector:
+        object:
+      description: 'Optional JSON body for the request (used for `POST` and `PUT`).'
