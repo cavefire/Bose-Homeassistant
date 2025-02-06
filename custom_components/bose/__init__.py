@@ -43,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     speaker = await connect_to_bose(config_entry)
     system_info = await speaker.get_system_info()
     capabilities = await speaker.get_capabilities()
-    accessories = await speaker.get_accessories()
+    
     await speaker.subscribe()
 
     # Register device in Home Assistant
@@ -64,9 +64,17 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["speaker"] = speaker
     hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
-    hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
-    await registerAccessories(hass, config_entry, accessories)
+
+    
+    try: 
+        # Not all Devices have accessories like "Bose Portable Smart Speaker"
+        accessories = await speaker.get_accessories()
+        await registerAccessories(hass, config_entry, accessories)
+    except Exception as e:
+        accessories = []
+
+    hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
