@@ -156,7 +156,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         guid = speaker.get_device_id()
 
         return self.async_create_entry(
-            title=f"{system_info.name} ({ip})",
+            title=f"{system_info.name}",
             data={
                 "mail": self.mail,
                 "password": self.password,
