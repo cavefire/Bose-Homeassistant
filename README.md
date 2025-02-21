@@ -37,6 +37,8 @@ So this integration is making use of `pybose`'s authentication. You can find mor
 
 ## Features
 
+This is the list of features implemented in the integration. Non-marked features are not yet implemented. Feel free to do so!
+
 - [x] Control volume
 - [x] See current volume
 - [x] See currently playing media (image and title)
@@ -51,6 +53,25 @@ So this integration is making use of `pybose`'s authentication. You can find mor
 - [ ] HDMI settings
 - [ ] Standby timer settings
 - [ ] Optical activation settings
+- [x] Battery Level (for portable speakers)
+- [x] Send arbitrary request via service
+
+### Services
+
+- `bose.send_custom_request` - Send a custom request to the speaker. This can be used to control features that are not yet implemented in the integration and for debugging purposes.
+
+### Supported Devices
+
+All devices controllable using the BOSE App should work. Here is the list of devices, that have been tested:
+
+- [x] Soundbar 700
+- [x] Soundbar 900
+- [x] Soundbar Ultra
+- [x] Portable Speaker
+
+If you have a device that is not listed here, please open an issue or a pull request.
+These devices only work with the features that are marked as completed above. Some features might not work due to hardware or software limitations. 
+**If a feature is missing on your device, please open an issue.**
 
 ## Contributing
 This project is a work in progress, and contributions are welcome!
