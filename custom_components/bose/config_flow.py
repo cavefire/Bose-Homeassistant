@@ -14,6 +14,25 @@ from homeassistant.config_entries import ConfigFlowResult
 from .const import DOMAIN
 
 
+async def Discover_Bose_Devices(hass: homeassistant.core.HomeAssistant):
+    """Discover devices using BoseDiscovery in an executor."""
+    zeroconf = await homeassistant.components.zeroconf.async_get_instance(hass)
+
+    def _run_discovery():
+        """Run the blocking discovery method."""
+        discovery = BoseDiscovery(zeroconf=zeroconf)
+        devices = discovery.discover_devices(timeout=1)
+        return [
+            {
+                "ip": device["IP"],
+                "guid": device["GUID"],
+            }
+            for device in devices
+        ]
+
+    return await hass.async_add_executor_job(_run_discovery)
+
+
 class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Bose integration."""
 
@@ -109,15 +128,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _discover_devices(self):
         """Discover devices using BoseDiscovery in an executor."""
-        zeroconf = await homeassistant.components.zeroconf.async_get_instance(self.hass)
-
-        def _run_discovery():
-            """Run the blocking discovery method."""
-            discovery = BoseDiscovery(zeroconf=zeroconf)
-            devices = discovery.discover_devices(timeout=1)
-            return [device["IP"] for device in devices]
-
-        return await self.hass.async_add_executor_job(_run_discovery)
+        devices = await Discover_Bose_Devices(self.hass)
+        return [device["ip"] for device in devices]
 
     def _get_control_token(self, email, password):
         """Authenticate and retrieve the control token."""

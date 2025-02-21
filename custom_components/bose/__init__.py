@@ -1,6 +1,7 @@
 """The Bose component."""
 
 import json
+import logging
 
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseResponse import Accessories
@@ -10,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import device_registry as dr
 
+from . import config_flow
 from .const import DOMAIN
 
 
@@ -41,9 +43,35 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
 
     speaker = await connect_to_bose(config_entry)
+
+    if not speaker:
+        discovered = await config_flow.Discover_Bose_Devices(hass)
+        found = False
+
+        # find the devce with the same GUID
+        for device in discovered:
+            if device["guid"] == config_entry.data["guid"]:
+                logging.error(
+                    "Found device with same GUID, updating IP to: %s", device["ip"]
+                )
+                hass.config_entries.async_update_entry(
+                    config_entry,
+                    data={**config_entry.data, "ip": device["ip"]},
+                )
+                found = True
+                break
+
+        if not found:
+            logging.error(
+                "Failed to connect to Bose speaker. No new ip was found, so assuming the device is offline."
+            )
+            return False
+
+        config_entry = hass.config_entries.async_get_entry(config_entry.entry_id)
+        speaker = await connect_to_bose(config_entry)
+
     system_info = await speaker.get_system_info()
     capabilities = await speaker.get_capabilities()
-    
     await speaker.subscribe()
 
     # Register device in Home Assistant
@@ -73,12 +101,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         await registerAccessories(hass, config_entry, accessories)
     except Exception as e:
         accessories = []
-
     hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
-        config_entry, ["media_player", "select", "number"]
+        config_entry, ["media_player", "select", "number", "sensor", "binary_sensor"]
     )
     return True
 
@@ -175,5 +202,10 @@ async def connect_to_bose(config_entry):
         host=data["ip"],
     )
 
-    await speaker.connect()
+    try:
+        await speaker.connect()
+    except Exception as e:
+        logging.error(f"Failed to connect to Bose speaker (IP: {data['ip']}): {e}")  # noqa: G004
+        return None
+
     return speaker
