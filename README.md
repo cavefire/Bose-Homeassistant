@@ -3,8 +3,6 @@
 This is a custom component for Home Assistant to integrate with Bose soundbars / speakers.
 The speakers are controlled 100% locally. However, a cloud account is needed and required configured in the integration. Read more about this in the [BOSE Account](#bose-account) section.
 
-**This integration is currently in development and is not yet ready for use.**
-
 ## Installation
 
 ### Using HACS
