@@ -18,5 +18,25 @@
                 }
             }
         }
+    },
+    "services": {
+        "send_custom_request": {
+            "name": "Send Custom Request",
+            "description": "Send a direct request to a Bose speaker.",
+            "fields": {
+                "resource": {
+                    "name": "Resource",
+                    "description": "The API resource path to request (e.g., `/system/info`)."
+                },
+                "method": {
+                    "name": "HTTP Method",
+                    "description": "The HTTP method to use (GET, POST, PUT, DELETE)."
+                },
+                "body": {
+                    "name": "Request Body",
+                    "description": "Optional JSON body for the request (used for POST and PUT)."
+                }
+            }
+        }
     }
 }
