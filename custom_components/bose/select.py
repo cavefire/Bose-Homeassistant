@@ -69,14 +69,13 @@ class BoseSourceSelect(SelectEntity):
 
         """
         TODO: find other way to filter sources.
-            "TV" is "NOT_CONFIGURED" on some devices (e.g. Soundbar 500). 
+            "TV" is "NOT_CONFIGURED" and not visible on some devices (e.g. Soundbar 500). 
             Including them for now, but should be changed in the future
         """
         self._attr_options = []
         for source in sources.sources:
             if (
-                source.visible
-                and (source.status == "AVAILABLE" or source.status == "NOT_CONFIGURED")
+                (source.status == "AVAILABLE" or source.status == "NOT_CONFIGURED")
                 and source.sourceAccountName
                 and source.sourceName
             ):
