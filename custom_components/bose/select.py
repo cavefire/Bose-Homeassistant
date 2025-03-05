@@ -67,7 +67,11 @@ class BoseSourceSelect(SelectEntity):
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
-        # add AVAILABLE_SOURCES to attr_options if in sources
+        """
+        TODO: find other way to filter sources.
+            "TV" is "NOT_CONFIGURED" on some devices (e.g. Soundbar 500). 
+            Including them for now, but should be changed in the future
+        """
         self._attr_options = []
         for source in sources.sources:
             if (
