@@ -62,9 +62,18 @@ This is the list of features implemented in the integration. Non-marked features
 
 All devices controllable using the BOSE App should work. Here is the list of devices, that have been tested:
 
+**Soundbars:**
+- [x] Soundbar 500
 - [x] Soundbar 700
 - [x] Soundbar 900
 - [x] Soundbar Ultra
+
+**Home Speakers:**
+- [x] Home Speaker 300
+- [x] Home Speaker 500
+
+**Others:**
+- [x] Music Amplifier
 - [x] Portable Speaker
 
 If you have a device that is not listed here, please open an issue or a pull request.
