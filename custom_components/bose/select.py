@@ -72,7 +72,7 @@ class BoseSourceSelect(SelectEntity):
         for source in sources.sources:
             if (
                 source.visible
-                and source.status == "AVAILABLE"
+                and (source.status == "AVAILABLE" or source.status == "NOT_CONFIGURED")
                 and source.sourceAccountName
                 and source.sourceName
             ):
