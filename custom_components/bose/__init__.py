@@ -106,9 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
     hass.data[DOMAIN][config_entry.entry_id]["auth"] = auth
 
-
-    
-    try: 
+    try:
         # Not all Devices have accessories like "Bose Portable Smart Speaker"
         accessories = await speaker.get_accessories()
         await registerAccessories(hass, config_entry, accessories)
@@ -194,14 +192,14 @@ async def registerAccessories(
 ):
     """Register accessories in Home Assistant."""
     device_registry = dr.async_get(hass)
-    for accessory in (accessories.subs) + accessories.rears:
+    for accessory in (accessories.get("subs", [])) + accessories.get("rears", {}):
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
-            identifiers={(DOMAIN, accessory.serialnum)},
+            identifiers={(DOMAIN, accessory.get("serialnum", "N/A"))},
             manufacturer="Bose",
-            name=accessory.type.replace("_", " "),
-            model=accessory.type.replace("_", " "),
-            sw_version=accessory.version,
+            name=accessory.get("type", "").replace("_", " "),
+            model=accessory.get("type", "").replace("_", " "),
+            sw_version=accessory.get("version", "N/A"),
             via_device=(DOMAIN, config_entry.data["guid"]),
         )
 

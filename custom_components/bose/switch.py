@@ -27,11 +27,11 @@ async def async_setup_entry(
 
     entities = []
     if accessories:
-        if accessories.controllable.subs:
+        if accessories.get("controllable", {}).get("subs", False):
             entities.append(
                 BoseSubwooferSwitch(speaker, system_info, accessories, config_entry)
             )
-        if accessories.controllable.rears:
+        if accessories.get("controllable", {}).get("rears", False):
             entities.append(
                 BoseRearSpeakerSwitch(speaker, system_info, accessories, config_entry)
             )
@@ -59,7 +59,7 @@ class BoseAccessorySwitch(SwitchEntity):
         self.speaker = speaker
         self._name = name
         self._attribute = attribute
-        self._is_on = getattr(accessories.enabled, attribute)
+        self._is_on = accessories.get("enabled", {}).get(attribute)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
@@ -82,7 +82,7 @@ class BoseAccessorySwitch(SwitchEntity):
 
     def _parse_accessories(self, data: Accessories):
         """Parse the accessories data."""
-        self._is_on = getattr(data.enabled, self._attribute)
+        self._is_on = data.get("enabled").get(self._attribute, False)
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
@@ -107,13 +107,7 @@ class BoseAccessorySwitch(SwitchEntity):
     @property
     def device_info(self) -> dict[str, Any]:
         """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info["name"],
-            "manufacturer": "Bose",
-            "model": self.speaker_info["productName"],
-            "sw_version": self.speaker_info["softwareVersion"],
-        }
+        return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
 
 
 class BoseSubwooferSwitch(BoseAccessorySwitch):
