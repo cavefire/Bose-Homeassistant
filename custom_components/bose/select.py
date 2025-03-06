@@ -6,7 +6,7 @@ from pybose.BoseSpeaker import BoseSpeaker
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
@@ -37,7 +37,7 @@ AVAILABLE_SOURCES = {
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Bose select entity."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
@@ -62,7 +62,7 @@ class BoseSourceSelect(SelectEntity):
     ) -> None:
         """Initialize the select entity."""
         self.speaker = speaker
-        self._attr_name = f"{speaker_info.name} Source"
+        self._attr_name = f"{speaker_info['name']} Source"
         self._attr_unique_id = f"{config_entry.data['guid']}_source_select"
         self.speaker_info = speaker_info
         self.config_entry = config_entry
@@ -73,25 +73,29 @@ class BoseSourceSelect(SelectEntity):
             Including them for now, but should be changed in the future
         """
         self._attr_options = []
-        for source in sources.sources:
+        for source in sources.get("sources", []):
             if (
-                (source.status in ("AVAILABLE", "NOT_CONFIGURED"))
-                and source.sourceAccountName
-                and source.sourceName
+                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED"))
+                and source.get("sourceAccountName", None)
+                and source.get("sourceName", None)
             ):
                 if (
-                    source.sourceName == "SPOTIFY"
-                    and source.sourceAccountName != "SpotifyConnectUserName"
+                    source.get("sourceName", None) == "SPOTIFY"
+                    and source.get("sourceAccountName", None)
+                    != "SpotifyConnectUserName"
                 ):
-                    AVAILABLE_SOURCES[f"Spotify: {source.sourceAccountName}"] = {
-                        "source": source.sourceName,
-                        "sourceAccount": source.sourceAccountName,
-                        "accountId": source.accountId,
+                    AVAILABLE_SOURCES[
+                        f"Spotify: {source.get('sourceAccountName', None)}"
+                    ] = {
+                        "source": source.get("sourceName", None),
+                        "sourceAccount": source.get("sourceAccountName", None),
+                        "accountId": source.get("accountId", None),
                     }
                 for key, value in AVAILABLE_SOURCES.items():
                     if (
-                        source.sourceName == value["source"]
-                        and source.sourceAccountName == value["sourceAccount"]
+                        source.get("sourceName", None) == value["source"]
+                        and source.get("sourceAccountName", None)
+                        == value["sourceAccount"]
                     ):
                         self._attr_options.append(key)
 
@@ -117,17 +121,21 @@ class BoseSourceSelect(SelectEntity):
     def _parse_now_playing(self, data: ContentNowPlaying):
         """Update the selected source based on now playing data."""
         for source_name, source_data in AVAILABLE_SOURCES.items():
-            if data.container.contentItem.source == source_data["source"]:
+            if (
+                data.get("container", {}).get("contentItem", {}).get("source")
+                == source_data["source"]
+            ):
                 if source_data["source"] == "SPOTIFY":
                     if (
-                        data.container.contentItem.sourceAccount
+                        data.get("container", {})
+                        .get("contentItem", {})
+                        .get("sourceAccount")
                         != source_data["accountId"]
                     ):
                         continue
-                elif (
-                    source_data["sourceAccount"]
-                    != data.container.contentItem.sourceAccount
-                ):
+                elif source_data["sourceAccount"] != data.get("container", {}).get(
+                    "contentItem", {}
+                ).get("sourceAccount"):
                     continue
 
                 self._selected_source = source_name
@@ -156,8 +164,8 @@ class BoseSourceSelect(SelectEntity):
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info.name,
+            "name": self.speaker_info["name"],
             "manufacturer": "Bose",
-            "model": self.speaker_info.productName,
-            "sw_version": self.speaker_info.softwareVersion,
+            "model": self.speaker_info["productName"],
+            "sw_version": self.speaker_info["softwareVersion"],
         }

@@ -60,8 +60,9 @@ class BoseTVSwitch(SwitchEntity):
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         self._is_on_tv = (
-            data.container.contentItem.source == "PRODUCT"
-            and data.container.contentItem.sourceAccount == "TV"
+            data.get("container", {}).get("contentItem", {}).get("source") == "PRODUCT"
+            and data.get("container", {}).get("contentItem", {}).get("sourceAccount")
+            == "TV"
         )
 
     async def async_update(self) -> None:
@@ -89,8 +90,8 @@ class BoseTVSwitch(SwitchEntity):
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info.name,
+            "name": self.speaker_info["name"],
             "manufacturer": "Bose",
-            "model": self.speaker_info.productName,
-            "sw_version": self.speaker_info.softwareVersion,
+            "model": self.speaker_info["productName"],
+            "sw_version": self.speaker_info["softwareVersion"],
         }

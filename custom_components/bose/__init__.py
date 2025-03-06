@@ -4,13 +4,12 @@ import json
 import logging
 
 from pybose.BoseAuth import BoseAuth
-from pybose.BoseResponse import Accessories
+from pybose.BoseResponse import Accessories, BoseApiProduct
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
 from .const import DOMAIN
@@ -19,6 +18,8 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Bose integration from a config entry."""
+    auth = BoseAuth()
+
     hass.data.setdefault(DOMAIN, {})
 
     # Store device data in a separate dict (instead of modifying config_entry.data)
@@ -28,20 +29,28 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     # Offload token validation to avoid blocking the event loop
     is_token_valid = await hass.async_add_executor_job(
-        _check_token_validity, config_entry.data.get("access_token")
+        auth.is_token_valid, config_entry.data.get("access_token")
     )
 
-    if not is_token_valid:
-        new_access_token = await hass.async_add_executor_job(
-            _fetch_access_token,
+    if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
+        login_result = await hass.async_add_executor_job(
+            auth.getControlToken,
             config_entry.data["mail"],
             config_entry.data["password"],
+            True,
         )
+
+        print(login_result)
 
         # Update the config entry properly using Home Assistant's API
         hass.config_entries.async_update_entry(
             config_entry,
-            data={**config_entry.data, "access_token": new_access_token},
+            data={
+                **config_entry.data,
+                "access_token": login_result["access_token"],
+                "refresh_token": login_result["refresh_token"],
+                "bose_person_id": login_result["bose_person_id"],
+            },
         )
 
     speaker = await connect_to_bose(config_entry)
@@ -83,10 +92,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         config_entry_id=config_entry.entry_id,
         identifiers={(DOMAIN, config_entry.data["guid"])},
         manufacturer="Bose",
-        name=system_info.name,
-        model=system_info.productName,
-        serial_number=system_info.serialNumber,
-        sw_version=system_info.softwareVersion,
+        name=system_info["name"],
+        model=system_info["productName"],
+        serial_number=system_info["serialNumber"],
+        sw_version=system_info["softwareVersion"],
         configuration_url=f"https://{config_entry.data['ip']}",
     )
 
@@ -94,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["speaker"] = speaker
     hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
+    hass.data[DOMAIN][config_entry.entry_id]["auth"] = auth
 
 
     
@@ -101,18 +111,29 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         # Not all Devices have accessories like "Bose Portable Smart Speaker"
         accessories = await speaker.get_accessories()
         await registerAccessories(hass, config_entry, accessories)
-    except Exception as e:
+    except Exception:  # noqa: BLE001
         accessories = []
     hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
-        config_entry, ["media_player", "select", "number", "sensor", "binary_sensor"]
+        config_entry,
+        [
+            "media_player",
+            "select",
+            "number",
+            "sensor",
+            "binary_sensor",
+            "switch",
+            "button",
+        ],
     )
     return True
 
 
-def setup(hass: HomeAssistant, config):
+def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
+    """Set up the Bose component."""
+
     async def handle_custom_request(call: ServiceCall) -> None:
         # Extract device_id from target
         ha_device_ids = call.data.get("device_id", [])  # Always returns a list
@@ -152,7 +173,7 @@ def setup(hass: HomeAssistant, config):
                 "summary": "Successfully sent request to Bose speaker",
                 "description": json.dumps(response, indent=2),
             }
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return {
                 "summary": "Failed to send request to Bose speaker",
                 "description": str(e),
@@ -184,18 +205,6 @@ async def registerAccessories(
         )
 
 
-def _check_token_validity(access_token: str) -> bool:
-    """Check if the Bose access token is still valid."""
-    return BoseAuth().is_token_valid(access_token)
-
-
-def _fetch_access_token(email: str, password: str) -> str:
-    """Fetch a new Bose access token using blocking requests."""
-    auth = BoseAuth()
-    token_response = auth.getControlToken(email, password)
-    return token_response["access_token"]
-
-
 async def connect_to_bose(config_entry):
     """Connect to the Bose speaker."""
     data = config_entry.data
@@ -206,7 +215,7 @@ async def connect_to_bose(config_entry):
 
     try:
         await speaker.connect()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logging.error(f"Failed to connect to Bose speaker (IP: {data['ip']}): {e}")  # noqa: G004
         return None
 

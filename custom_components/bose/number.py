@@ -5,11 +5,19 @@ import logging
 from pybose.BoseResponse import Audio
 from pybose.BoseSpeaker import BoseSpeaker
 
-from homeassistant.components.number import NumberEntity
+from homeassistant.components.number import (
+    ATTR_MAX,
+    ATTR_MIN,
+    ATTR_MODE,
+    ATTR_STEP,
+    ATTR_VALUE,
+    NumberEntity,
+    NumberMode,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
@@ -31,7 +39,7 @@ ADJUSTABLE_PARAMETERS = [
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Bose number entities (sliders) for sound settings."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
@@ -77,9 +85,11 @@ class BoseAudioSlider(NumberEntity):
         self._path = parameter.get("path")
         self._option = parameter.get("option")
         self._current_value = None
-        self._attr_min_value = 0
+        self._attr_min_value = -100
         self._attr_max_value = 100
         self._attr_step = 10
+        self._attr_native_min_value = -100
+        self._attr_native_max_value = 100
 
         self._attr_entity_category = EntityCategory.CONFIG
 
@@ -95,10 +105,7 @@ class BoseAudioSlider(NumberEntity):
             self._parse_audio(Audio(data.get("body")))
 
     def _parse_audio(self, data: Audio):
-        self._attr_min_value = data.properties.min
-        self._attr_max_value = data.properties.max
-        self._attr_step = data.properties.step
-        self._current_value = data.value
+        self._current_value = data.get("value", 0)
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
@@ -130,10 +137,11 @@ class BoseAudioSlider(NumberEntity):
     def capability_attributes(self):
         """Return capability attributes."""
         return {
-            "min": self._attr_min_value,
-            "max": self._attr_max_value,
-            "step": self._attr_step,
-            "mode": "auto",
+            ATTR_MIN: self._attr_min_value,
+            ATTR_MAX: self._attr_max_value,
+            ATTR_STEP: self._attr_step,
+            ATTR_VALUE: self._current_value,
+            ATTR_MODE: NumberMode.SLIDER,
         }
 
     @property
@@ -141,8 +149,8 @@ class BoseAudioSlider(NumberEntity):
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info.name,
+            "name": self.speaker_info["name"],
             "manufacturer": "Bose",
-            "model": self.speaker_info.productName,
-            "sw_version": self.speaker_info.softwareVersion,
+            "model": self.speaker_info["productName"],
+            "sw_version": self.speaker_info["softwareVersion"],
         }

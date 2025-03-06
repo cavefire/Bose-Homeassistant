@@ -2,7 +2,7 @@
 
 import logging
 
-from pybose.BoseResponse import AudioVolume, ContentNowPlaying
+from pybose.BoseResponse import AudioVolume, ContentNowPlaying, SystemInfo
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.media_player import (
@@ -12,7 +12,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
@@ -20,7 +20,7 @@ from .const import DOMAIN
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Bose media player."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
@@ -32,10 +32,10 @@ async def async_setup_entry(
 class BoseMediaPlayer(MediaPlayerEntity):
     """Representation of a Bose speaker as a media player."""
 
-    def __init__(self, speaker: BoseSpeaker, system_info) -> None:
+    def __init__(self, speaker: BoseSpeaker, system_info: SystemInfo) -> None:
         """Initialize the Bose media player."""
         self.speaker = speaker
-        self._name = system_info.name
+        self._name = system_info["name"]
         self._device_id = speaker.get_device_id()
         self._is_on = False
         self._state = MediaPlayerState.OFF
@@ -68,13 +68,13 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self.async_write_ha_state()
 
     def _parse_audio_volume(self, data: AudioVolume):
-        self._volume_level = data.value / 100
+        self._volume_level = data.get("value", 0) / 100
         # TODO: Mute is implemented in another way?
-        self._muted = self.volume_level == 0
+        self._muted = self._volume_level == 0
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
-            match data.state.status:
+            match data.get("state", {}).get("status"):
                 case "PLAY":
                     self._state = MediaPlayerState.PLAYING
                 case "PAUSED":
@@ -84,72 +84,36 @@ class BoseMediaPlayer(MediaPlayerEntity):
                 case "STOPPED":
                     self._state = MediaPlayerState.IDLE
                 case _:
-                    logging.warning("State not implemented: %s", data.state.status)
+                    logging.warning(
+                        "State not implemented: %s", data.get("state", {}).get("status")
+                    )
                     self._state = MediaPlayerState.ON
         except AttributeError:
             self._state = MediaPlayerState.ON
 
-        self._source = data.source.sourceDisplayName if data.source else None
+        self._source = data.get("source", {}).get("sourceDisplayName", None)
 
-        try:
-            self._media_title = (
-                data.metadata.trackName
-                if data.metadata.trackName
-                else self._media_title
-            )
-            self._media_artist = (
-                data.metadata.artist if data.metadata.artist else self._media_artist
-            )
-            self._media_album_name = (
-                data.metadata.album if data.metadata.album else self._media_album_name
-            )
-            self._media_duration = (
-                data.metadata.duration
-                if data.metadata.duration
-                else self._media_duration
-            )
-            self._media_position = (
-                data.state.timeIntoTrack
-                if data.state.timeIntoTrack
-                else self._media_position
-            )
-        except AttributeError:
-            if self._state not in (
-                MediaPlayerState.PAUSED,
-                MediaPlayerState.BUFFERING,
-            ):
-                self._media_title = None
-                self._media_artist = None
-                self._media_album_name = None
-                self._media_duration = None
-                self._media_position = None
+        self._media_title = data.get("metadata", {}).get("trackName")
+        self._media_artist = data.get("metadata", {}).get("artist")
+        self._media_album_name = data.get("metadata", {}).get("album")
+        self._media_duration = data.get("metadata", {}).get("duration")
+        self._media_position = data.get("state", {}).get("timeIntoTrack")
 
-        try:
-            if (
-                data.container.contentItem.source == "PRODUCT"
-                and data.container.contentItem.sourceAccount == "TV"
-            ):
-                self._source = "TV"
-                self._media_title = "TV"
-                self._media_album_name = None
-                self._media_artist = None
-                self._media_duration = None
-                self._media_position = None
-        except AttributeError:
-            pass
+        if (
+            data.get("container", {}).get("contentItem", {}).get("source") == "PRODUCT"
+            and data.get("container", {}).get("contentItem", {}).get("sourceAccount")
+            == "TV"
+        ):
+            self._source = "TV"
+            self._media_title = "TV"
+            self._media_album_name = None
+            self._media_artist = None
+            self._media_duration = None
+            self._media_position = None
 
-        try:
-            self._album_art = (
-                data.track.contentItem.containerArt
-                if data.track.contentItem
-                else self._album_art
-            )
-        except AttributeError:
-            if self._state not in (
-                MediaPlayerState.PAUSED,
-                MediaPlayerState.BUFFERING,
-            ):
-                self._album_art = None
+        self._album_art = (
+            data.get("track", {}).get("contentItem", {}).get("containerArt")
+        )
 
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
