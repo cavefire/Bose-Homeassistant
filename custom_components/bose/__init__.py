@@ -17,6 +17,7 @@ from .const import DOMAIN
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Bose integration from a config entry."""
     hass.data.setdefault(DOMAIN, {})
@@ -95,19 +96,18 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
 
-
-    
-    try: 
+    try:
         # Not all Devices have accessories like "Bose Portable Smart Speaker"
         accessories = await speaker.get_accessories()
         await registerAccessories(hass, config_entry, accessories)
-    except Exception as e:
+    except Exception:
         accessories = []
     hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
-        config_entry, ["media_player", "select", "number", "sensor", "binary_sensor"]
+        config_entry,
+        ["media_player", "select", "number", "sensor", "binary_sensor", "switch"],
     )
     return True
 
