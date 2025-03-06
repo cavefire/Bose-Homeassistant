@@ -1,3 +1,5 @@
+import logging
+
 from pybose.BoseResponse import Battery
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -49,7 +51,11 @@ class BoseBatteryBase(Entity):
             self.update_from_battery_status(battery_status)
             self.async_write_ha_state()
         except Exception:  # noqa: BLE001
-            pass
+            logging.debug(
+                "Error updating battery status for %s",
+                self.config_entry.data["ip"],
+            )
+            logging.exception()
 
 
 class BoseBatteryLevelSensor(BoseBatteryBase, SensorEntity):

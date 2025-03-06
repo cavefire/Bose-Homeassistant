@@ -14,8 +14,8 @@ from .const import DOMAIN
 # I dont have a spotify account, so I can't test that. Feel free :)
 AVAILABLE_SOURCES = {
     "Group": {"source": "GROUPING", "sourceAccount": "grouping@bose.com"},
-    "Spotify": {"source": "SPOTIFY", "sourceAccount": "SpotifyConnectUserName"},
-    "SpotifyAlexa": {"source": "SPOTIFY", "sourceAccount": "SpotifyAlexaUserName"},
+    # "Spotify": {"source": "SPOTIFY", "sourceAccount": "SpotifyConnectUserName"},
+    # "SpotifyAlexa": {"source": "SPOTIFY", "sourceAccount": "SpotifyAlexaUserName"},
     # "Chromecast": {
     #    "source": "CHROMECASTBUILTIN",
     #    "sourceAccount": "chromecast_builtin@bose.com",
@@ -69,16 +69,25 @@ class BoseSourceSelect(SelectEntity):
 
         """
         TODO: find other way to filter sources.
-            "TV" is "NOT_CONFIGURED" and not visible on some devices (e.g. Soundbar 500). 
+            "TV" is "NOT_CONFIGURED" and not visible on some devices (e.g. Soundbar 500).
             Including them for now, but should be changed in the future
         """
         self._attr_options = []
         for source in sources.sources:
             if (
-                (source.status == "AVAILABLE" or source.status == "NOT_CONFIGURED")
+                (source.status in ("AVAILABLE", "NOT_CONFIGURED"))
                 and source.sourceAccountName
                 and source.sourceName
             ):
+                if (
+                    source.sourceName == "SPOTIFY"
+                    and source.sourceAccountName != "SpotifyConnectUserName"
+                ):
+                    AVAILABLE_SOURCES[f"Spotify: {source.sourceAccountName}"] = {
+                        "source": source.sourceName,
+                        "sourceAccount": source.sourceAccountName,
+                        "accountId": source.accountId,
+                    }
                 for key, value in AVAILABLE_SOURCES.items():
                     if (
                         source.sourceName == value["source"]
@@ -108,11 +117,19 @@ class BoseSourceSelect(SelectEntity):
     def _parse_now_playing(self, data: ContentNowPlaying):
         """Update the selected source based on now playing data."""
         for source_name, source_data in AVAILABLE_SOURCES.items():
-            if (
-                data.container.contentItem.source == source_data["source"]
-                and data.container.contentItem.sourceAccount
-                == source_data["sourceAccount"]
-            ):
+            if data.container.contentItem.source == source_data["source"]:
+                if source_data["source"] == "SPOTIFY":
+                    if (
+                        data.container.contentItem.sourceAccount
+                        != source_data["accountId"]
+                    ):
+                        continue
+                elif (
+                    source_data["sourceAccount"]
+                    != data.container.contentItem.sourceAccount
+                ):
+                    continue
+
                 self._selected_source = source_name
                 self.async_write_ha_state()
                 return

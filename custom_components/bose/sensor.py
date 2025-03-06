@@ -22,13 +22,19 @@ async def async_setup_entry(
     """Set up Bose battery sensor if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
 
-    battery_status = await speaker.get_battery_status()
+    try:
+        battery_status = await speaker.get_battery_status()
 
-    async_add_entities(
-        [
-            BoseBatteryLevelSensor(speaker, battery_status, config_entry),
-            BoseBatteryTimeTillEmpty(speaker, battery_status, config_entry),
-            BoseBatteryTimeTillFull(speaker, battery_status, config_entry),
-        ],
-        update_before_add=False,
-    )
+        async_add_entities(
+            [
+                BoseBatteryLevelSensor(speaker, battery_status, config_entry),
+                BoseBatteryTimeTillEmpty(speaker, battery_status, config_entry),
+                BoseBatteryTimeTillFull(speaker, battery_status, config_entry),
+            ],
+            update_before_add=False,
+        )
+    except Exception:  # noqa: BLE001
+        logging.debug(
+            "Battery status not available for %s. Skipping battery sensors.",
+            config_entry.data["ip"],
+        )
