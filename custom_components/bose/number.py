@@ -5,7 +5,15 @@ import logging
 from pybose.BoseResponse import Audio
 from pybose.BoseSpeaker import BoseSpeaker
 
-from homeassistant.components.number import NumberEntity
+from homeassistant.components.number import (
+    NumberEntity,
+    ATTR_MIN,
+    ATTR_MAX,
+    ATTR_STEP,
+    ATTR_VALUE,
+    ATTR_MODE,
+    NumberMode,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -77,9 +85,11 @@ class BoseAudioSlider(NumberEntity):
         self._path = parameter.get("path")
         self._option = parameter.get("option")
         self._current_value = None
-        self._attr_min_value = 0
+        self._attr_min_value = -100
         self._attr_max_value = 100
         self._attr_step = 10
+        self._attr_native_min_value = -100
+        self._attr_native_max_value = 100
 
         self._attr_entity_category = EntityCategory.CONFIG
 
@@ -95,9 +105,6 @@ class BoseAudioSlider(NumberEntity):
             self._parse_audio(Audio(data.get("body")))
 
     def _parse_audio(self, data: Audio):
-        self._attr_min_value = data.properties.min
-        self._attr_max_value = data.properties.max
-        self._attr_step = data.properties.step
         self._current_value = data.value
         self.async_write_ha_state()
 
@@ -130,10 +137,11 @@ class BoseAudioSlider(NumberEntity):
     def capability_attributes(self):
         """Return capability attributes."""
         return {
-            "min": self._attr_min_value,
-            "max": self._attr_max_value,
-            "step": self._attr_step,
-            "mode": "auto",
+            ATTR_MIN: self._attr_min_value,
+            ATTR_MAX: self._attr_max_value,
+            ATTR_STEP: self._attr_step,
+            ATTR_VALUE: self._current_value,
+            ATTR_MODE: NumberMode.SLIDER,
         }
 
     @property
