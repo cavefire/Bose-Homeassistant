@@ -62,6 +62,7 @@ class BoseAccessorySwitch(SwitchEntity):
         self._is_on = accessories.get("enabled", {}).get(attribute)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
+        self.icon = "mdi:speaker"
 
         self.speaker.attach_receiver(self._parse_message)
 
