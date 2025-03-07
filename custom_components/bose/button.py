@@ -67,6 +67,9 @@ class BosePresetbutton(ButtonEntity):
         self._preset = preset
         self._preset_num = presetNum
         self.config_entry = config_entry
+        self.entity_id = (
+            f"{DOMAIN}.{self.config_entry.data['name']}_preset_{self._preset_num}"
+        )
 
     async def async_press(self, **kwargs) -> None:
         """Press the button."""
