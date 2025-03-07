@@ -1,10 +1,13 @@
 """Support for Bose source selection."""
 
-from pybose.BoseResponse import ContentNowPlaying, Sources
+import logging
+
+from pybose.BoseResponse import AudioMode, ContentNowPlaying, Sources
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -43,15 +46,24 @@ async def async_setup_entry(
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
 
+    entities = []
+
     # Fetch sources
-    sources = await speaker.get_sources()
+    try:
+        sources = await speaker.get_sources()
+        entities.append(BoseSourceSelect(speaker, system_info, config_entry, sources))
+    except Exception as e:
+        logging.warning(f"Failed to fetch sources: {e}")
+        pass
 
-    # Add select entity with device info
-    entity = BoseSourceSelect(speaker, system_info, config_entry, sources)
-    async_add_entities([entity])
+    try:
+        audioMode = await speaker.get_audio_mode()
+        entities.append(BoseAudioSelect(speaker, system_info, config_entry, audioMode))
+    except Exception as e:
+        logging.debug(f"Failed to fetch audio mode: {e}")
+        pass
 
-    # Ensure state update only happens after HA registers the entity
-    await entity.async_update()
+    async_add_entities(entities, update_before_add=False)
 
 
 class BoseSourceSelect(SelectEntity):
@@ -164,8 +176,58 @@ class BoseSourceSelect(SelectEntity):
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info["name"],
-            "manufacturer": "Bose",
-            "model": self.speaker_info["productName"],
-            "sw_version": self.speaker_info["softwareVersion"],
+        }
+
+
+class BoseAudioSelect(SelectEntity):
+    """Representation of a Bose device audio selector."""
+
+    def __init__(
+        self, speaker: BoseSpeaker, speaker_info, config_entry, audioMode: AudioMode
+    ) -> None:
+        """Initialize the select entity."""
+        self.speaker = speaker
+        self._attr_name = f"{speaker_info['name']} Audio"
+        self._attr_unique_id = f"{config_entry.data['guid']}_audio_select"
+        self.speaker_info = speaker_info
+        self.config_entry = config_entry
+
+        self._attr_options = []
+        self._selected_audio = None
+
+        self._attr_entity_category = EntityCategory.CONFIG
+
+        self.speaker.attach_receiver(self._parse_message)
+        self._parse_audio_mode(audioMode)
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the audio mode on the speaker."""
+        await self.speaker.set_audio_mode(option)
+
+    def _parse_audio_mode(self, data: AudioMode):
+        self._selected_audio = data.get("value")
+        self._attr_options = data.get("properties", {}).get("supportedValues", [])
+        if self.hass:
+            self.async_write_ha_state()
+
+    def _parse_message(self, data):
+        """Parse real-time messages from the speaker."""
+        if data.get("header", {}).get("resource") == "/audio/mode":
+            self._parse_audio_mode(AudioMode(data.get("body")))
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the currently selected option."""
+        return self._selected_audio
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID for this entity."""
+        return self._attr_unique_id
+
+    @property
+    def device_info(self):
+        """Return device information about this entity."""
+        return {
+            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
         }
