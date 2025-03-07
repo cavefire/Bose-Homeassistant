@@ -86,6 +86,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
                     self._state = MediaPlayerState.BUFFERING
                 case "STOPPED":
                     self._state = MediaPlayerState.IDLE
+                case None:
+                    self._state = MediaPlayerState.OFF
                 case _:
                     logging.warning(
                         "State not implemented: %s", data.get("state", {}).get("status")
@@ -248,7 +250,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
         if self._now_playing_result is None:
             return MediaPlayerEntityFeature.PLAY
         return (
-            (
+            MediaPlayerEntityFeature.TURN_OFF
+            | (
                 MediaPlayerEntityFeature.NEXT_TRACK
                 if self._now_playing_result.get("state", {}).get("canSkipNext", False)
                 else 0
