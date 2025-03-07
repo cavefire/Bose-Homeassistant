@@ -46,7 +46,7 @@ This is the list of features implemented in the integration. Non-marked features
 - [x] Switch to aux sources
 - [ ] Control bluetooth 
 - [x] Audio setup (bass, treble, ...)
-- [ ] Configure bass module / surround speakers
+- [x] Configure bass module / surround speakers
 - [ ] Group speakers
 - [ ] HDMI settings
 - [ ] Standby timer settings
