@@ -23,16 +23,54 @@ from .const import DOMAIN
 
 # Define adjustable sound parameters
 ADJUSTABLE_PARAMETERS = [
-    {"display": "Bass", "path": "/audio/bass", "option": "bass"},
-    {"display": "Treble", "path": "/audio/treble", "option": "treble"},
-    {"display": "Center", "path": "/audio/center", "option": "center"},
+    {
+        "display": "Bass",
+        "path": "/audio/bass",
+        "option": "bass",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
+    {
+        "display": "Treble",
+        "path": "/audio/treble",
+        "option": "treble",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
+    {
+        "display": "Center",
+        "path": "/audio/center",
+        "option": "center",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
     {
         "display": "Subwoofer Gain",
         "path": "/audio/subwooferGain",
         "option": "subwooferGain",
+        "min": -100,
+        "max": 100,
+        "step": 10,
     },
-    {"display": "Height", "path": "/audio/height", "option": "height"},
-    {"display": "AV Sync", "path": "/audio/avSync", "option": "avSync"},
+    {
+        "display": "Height",
+        "path": "/audio/height",
+        "option": "height",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
+    {
+        "display": "AV Sync",
+        "path": "/audio/avSync",
+        "option": "avSync",
+        "min": 0,
+        "max": 200,
+        "step": 10,
+    },
 ]
 
 
@@ -85,11 +123,13 @@ class BoseAudioSlider(NumberEntity):
         self._path = parameter.get("path")
         self._option = parameter.get("option")
         self._current_value = None
-        self._attr_min_value = -100
-        self._attr_max_value = 100
-        self._attr_step = 10
-        self._attr_native_min_value = -100
-        self._attr_native_max_value = 100
+        self._attr_min_value = parameter.get("min")
+        self._attr_max_value = parameter.get("max")
+        self._attr_step = parameter.get("step")
+        self._attr_native_min_value = parameter.get("min")
+        self._attr_native_max_value = parameter.get("max")
+        self._attr_native_step = parameter.get("step")
+        self._attr_icon = "mdi:sine-wave"
 
         self._attr_entity_category = EntityCategory.CONFIG
 
