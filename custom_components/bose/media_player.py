@@ -13,6 +13,7 @@ from homeassistant.components.media_player import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt
 
 from .const import DOMAIN
 
@@ -26,7 +27,7 @@ async def async_setup_entry(
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
 
-    async_add_entities([BoseMediaPlayer(speaker, system_info)], update_before_add=True)
+    async_add_entities([BoseMediaPlayer(speaker, system_info)], update_before_add=False)
 
 
 class BoseMediaPlayer(MediaPlayerEntity):
@@ -48,6 +49,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._media_album_name = None
         self._media_duration = None
         self._media_position = None
+        self._last_update = None
+        self._now_playing_result = None
 
         speaker.attach_receiver(self.parse_message)
 
@@ -96,8 +99,11 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._media_title = data.get("metadata", {}).get("trackName")
         self._media_artist = data.get("metadata", {}).get("artist")
         self._media_album_name = data.get("metadata", {}).get("album")
-        self._media_duration = data.get("metadata", {}).get("duration")
-        self._media_position = data.get("state", {}).get("timeIntoTrack")
+        self._media_duration = int(data.get("metadata", {}).get("duration", 999))
+        self._media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
+        self._last_update = dt.utcnow()
+
+        self._now_playing_result: ContentNowPlaying = data
 
         if (
             data.get("container", {}).get("contentItem", {}).get("source") == "PRODUCT"
@@ -122,6 +128,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
         data = await self.speaker.get_audio_volume()
         self._parse_audio_volume(data)
+        self.async_write_ha_state()
 
     async def async_turn_on(self) -> None:
         """Turn on the speaker."""
@@ -163,6 +170,11 @@ class BoseMediaPlayer(MediaPlayerEntity):
     async def async_media_previous_track(self) -> None:
         """Skip to the previous track."""
         await self.speaker.skip_previous()
+        self.async_write_ha_state()
+
+    async def async_media_seek(self, position):
+        """Seek the media to a specific location."""
+        await self.speaker.seek(position)
         self.async_write_ha_state()
 
     @property
@@ -211,6 +223,11 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._media_position
 
     @property
+    def media_position_updated_at(self):
+        """Return the last time the media position was updated."""
+        return self._last_update
+
+    @property
     def media_image_url(self) -> str:
         """Return the URL of the album art."""
         return self._album_art
@@ -228,14 +245,39 @@ class BoseMediaPlayer(MediaPlayerEntity):
     @property
     def supported_features(self) -> MediaPlayerEntityFeature:
         """Return the features supported by this media player."""
+        if self._now_playing_result is None:
+            return MediaPlayerEntityFeature.PLAY
         return (
-            MediaPlayerEntityFeature.TURN_ON
-            | MediaPlayerEntityFeature.TURN_OFF
-            | MediaPlayerEntityFeature.VOLUME_SET
-            | MediaPlayerEntityFeature.PAUSE
+            (
+                MediaPlayerEntityFeature.NEXT_TRACK
+                if self._now_playing_result.get("state", {}).get("canSkipNext", False)
+                else 0
+            )
+            | (
+                MediaPlayerEntityFeature.PAUSE
+                if self._now_playing_result.get("state", {}).get("canPause", False)
+                else 0
+            )
             | MediaPlayerEntityFeature.PLAY
-            | MediaPlayerEntityFeature.NEXT_TRACK
-            | MediaPlayerEntityFeature.PREVIOUS_TRACK
+            | (
+                MediaPlayerEntityFeature.PREVIOUS_TRACK
+                if self._now_playing_result.get("state", {}).get(
+                    "canSkipPrevious", False
+                )
+                else 0
+            )
+            | (
+                MediaPlayerEntityFeature.SEEK
+                if self._now_playing_result.get("state", {}).get("canSeek", False)
+                else 0
+            )
+            | MediaPlayerEntityFeature.VOLUME_SET
+            | MediaPlayerEntityFeature.VOLUME_STEP
+            | (
+                MediaPlayerEntityFeature.STOP
+                if self._now_playing_result.get("state", {}).get("canStop", False)
+                else 0
+            )
         )
 
     @property

@@ -113,18 +113,23 @@ class BoseSourceSelect(SelectEntity):
                 and source.get("sourceAccountName", None)
                 and source.get("sourceName", None)
             ):
-                if (
-                    source.get("sourceName", None) == "SPOTIFY"
-                    and source.get("sourceAccountName", None)
-                    != "SpotifyConnectUserName"
+                if source.get("sourceName", None) in (
+                    "AMAZON",
+                    "SPOTIFY",
+                    "DEEZER",
+                ) and source.get("sourceAccountName", None) not in (
+                    "AlexaUserName",
+                    "SpotifyConnectUserName",
+                    "DeezerUserName",
                 ):
                     AVAILABLE_SOURCES[
-                        f"Spotify: {source.get('sourceAccountName', None)}"
+                        f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
                     ] = {
                         "source": source.get("sourceName", None),
                         "sourceAccount": source.get("sourceAccountName", None),
                         "accountId": source.get("accountId", None),
                     }
+
                 for key, value in AVAILABLE_SOURCES.items():
                     if (
                         source.get("sourceName", None) == value["source"]
@@ -159,7 +164,7 @@ class BoseSourceSelect(SelectEntity):
                 data.get("container", {}).get("contentItem", {}).get("source")
                 == source_data["source"]
             ):
-                if source_data["source"] == "SPOTIFY":
+                if source_data["source"] in ("SPOTIFY", "AMAZON", "DEEZER"):
                     if (
                         data.get("container", {})
                         .get("contentItem", {})
@@ -176,7 +181,10 @@ class BoseSourceSelect(SelectEntity):
                 self.async_write_ha_state()
                 return
 
-        self._selected_source = None
+        self._selected_source = (
+            data.get("container", {}).get("contentItem", {}).get("source").capitalize()
+        )
+        self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch the current playing source."""
