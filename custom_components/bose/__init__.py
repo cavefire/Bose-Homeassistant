@@ -41,8 +41,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             True,
         )
 
-        print(login_result)
-
         # Update the config entry properly using Home Assistant's API
         hass.config_entries.async_update_entry(
             config_entry,
