@@ -33,8 +33,14 @@ async def async_setup_entry(
             ],
             update_before_add=False,
         )
-    except Exception:  # noqa: BLE001
-        logging.debug(
-            "Battery status not available for %s. Skipping battery sensors.",
-            config_entry.data["ip"],
-        )
+    except Exception as e:  # noqa: BLE001
+        if e.args[1] == 0:
+            logging.debug(
+                "Speaker does not support battery status for %s",
+                config_entry.data["ip"],
+            )
+        else:
+            logging.error(
+                "Error setting up Bose battery sensor for %s",
+                config_entry.data["ip"],
+            )

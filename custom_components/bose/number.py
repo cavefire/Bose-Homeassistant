@@ -97,7 +97,7 @@ async def async_setup_entry(
 
     for parameter in ADJUSTABLE_PARAMETERS:
         if parameter["path"] not in endpoints:
-            logging.warning(f"Speaker does not support {parameter['display']} setting")  # noqa: G004
+            logging.debug(f"Speaker does not support {parameter['display']} setting")  # noqa: G004
         else:
             entities.append(
                 BoseAudioSlider(speaker, system_info, config_entry, parameter)

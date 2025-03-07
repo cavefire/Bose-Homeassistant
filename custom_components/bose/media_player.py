@@ -13,6 +13,7 @@ from homeassistant.components.media_player import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt
 
 from .const import DOMAIN
@@ -33,7 +34,11 @@ async def async_setup_entry(
 class BoseMediaPlayer(MediaPlayerEntity):
     """Representation of a Bose speaker as a media player."""
 
-    def __init__(self, speaker: BoseSpeaker, system_info: SystemInfo) -> None:
+    def __init__(
+        self,
+        speaker: BoseSpeaker,
+        system_info: SystemInfo,
+    ) -> None:
         """Initialize the Bose media player."""
         self.speaker = speaker
         self._name = system_info["name"]
@@ -51,6 +56,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._media_position = None
         self._last_update = None
         self._now_playing_result = None
+        self._group_members = []
+        self._active_group_id = None
 
         speaker.attach_receiver(self.parse_message)
 
@@ -59,7 +66,6 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
         resource = data.get("header", {}).get("resource")
         body = data.get("body", {})
-        logging.info("Received message: %s", resource)
         if resource == "/audio/volume":
             self._parse_audio_volume(AudioVolume(body))
         elif resource == "/system/power/control":
@@ -67,8 +73,47 @@ class BoseMediaPlayer(MediaPlayerEntity):
             self._state = MediaPlayerState.OFF if not self._is_on else self._state
         elif resource == "/content/nowPlaying":
             self._parse_now_playing(ContentNowPlaying(body))
+        elif resource == "/grouping/activeGroups":
+            self._parse_grouping(body)
 
         self.async_write_ha_state()
+
+    def _parse_grouping(self, data: dict):
+        active_groups = data.get("activeGroups", {})
+
+        if len(active_groups) == 0:
+            self._group_members = []
+            self._active_group_id = None
+            return
+
+        active_group = active_groups[0]
+
+        guids = [
+            product.get("productId", None) for product in active_group.get("products")
+        ]
+
+        if len(guids) == 0:
+            self._group_members = []
+            self._active_group_id = None
+            return
+
+        guids.sort(
+            key=lambda guid: guid == active_group.get("groupMasterId"), reverse=True
+        )
+
+        registry = er.async_get(self.hass)
+
+        entity_ids = [
+            registry.async_get_entity_id(
+                "media_player",
+                DOMAIN,
+                f"{guid}-media",
+            )
+            for guid in guids
+        ]
+
+        self._group_members = entity_ids
+        self._active_group_id = active_group.get("activeGroupId")
 
     def _parse_audio_volume(self, data: AudioVolume):
         self._volume_level = data.get("value", 0) / 100
@@ -130,6 +175,9 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
         data = await self.speaker.get_audio_volume()
         self._parse_audio_volume(data)
+
+        active_groups = await self.speaker.get_active_groups()
+        self._parse_grouping({"activeGroups": active_groups})
         self.async_write_ha_state()
 
     async def async_turn_on(self) -> None:
@@ -178,6 +226,52 @@ class BoseMediaPlayer(MediaPlayerEntity):
         """Seek the media to a specific location."""
         await self.speaker.seek(position)
         self.async_write_ha_state()
+
+    async def async_join_players(self, group_members):
+        """Join `group_members` as a player group with the current player."""
+        registry = er.async_get(self.hass)
+        entities = [registry.async_get(entity_id) for entity_id in group_members]
+
+        guids = [
+            self.hass.data[DOMAIN][entity.config_entry_id]
+            .get("system_info", {})
+            .get("guid", None)
+            for entity in entities
+        ]
+
+        if not self._group_members[0] == self.entity_id:
+            logging.warning(
+                "Speakers can only join the master of the group, which is %s",
+                self._group_members[0],
+            )
+            logging.warning("Running action on master speaker.")
+            master: BoseSpeaker = self.hass.data[DOMAIN][
+                registry.async_get(self._group_members[0]).config_entry_id
+            ]["speaker"]
+            await master.add_to_active_group(self._active_group_id, guids)
+            return
+
+        if self._active_group_id is not None:
+            await self.speaker.add_to_active_group(self._active_group_id, guids)
+        else:
+            await self.speaker.set_active_group(guids)
+        self.async_write_ha_state()
+
+    async def async_unjoin_player(self):
+        """Unjoin the player from a group."""
+
+        master_entity_id = self._group_members[0]
+
+        if self.entity_id == master_entity_id:
+            await self.speaker.stop_active_groups()
+        else:
+            master_entity = er.async_get(self.hass).async_get(master_entity_id)
+            master_speaker = self.hass.data[DOMAIN][master_entity.config_entry_id][
+                "speaker"
+            ]
+            await master_speaker.remove_from_active_group(
+                self._active_group_id, [self._device_id]
+            )
 
     @property
     def name(self) -> str:
@@ -281,7 +375,13 @@ class BoseMediaPlayer(MediaPlayerEntity):
                 if self._now_playing_result.get("state", {}).get("canStop", False)
                 else 0
             )
+            | MediaPlayerEntityFeature.GROUPING
         )
+
+    @property
+    def group_members(self):
+        """Return the list of members of this player's group."""
+        return self._group_members
 
     @property
     def device_info(self) -> dict | None:
