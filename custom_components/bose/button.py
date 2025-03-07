@@ -103,6 +103,7 @@ class BosePresetbutton(ButtonEntity):
         self.entity_id = (
             f"{DOMAIN}.{self.config_entry.data['name']}_preset_{self.preset_num}"
         )
+        self.icon = "mdi:folder-play"
         self.update_preset(preset)
 
     def update_preset(self, preset: Preset) -> None:
