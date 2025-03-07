@@ -47,12 +47,33 @@ This is the list of features implemented in the integration. Non-marked features
 - [ ] Control bluetooth 
 - [x] Audio setup (bass, treble, ...)
 - [x] Configure bass module / surround speakers
-- [ ] Group speakers
+- [x] Group speakers
 - [ ] HDMI settings
 - [ ] Standby timer settings
 - [ ] Optical activation settings
 - [x] Battery Level (for portable speakers)
 - [x] Send arbitrary request via service
+
+### Group speakers
+You can group multiple Bose speakers together, like in the Bose App. This is done by using the service `media_player.join`.
+
+**Target:** Select the entity you want to be the master speaker (max. 1 media player!)
+**Group members:** Select the entities you want to join the master speaker.
+
+You can either join all desired speakers together, or you can join them one by one.
+Joining a speaker to a other speaker, that is already in a group, will join the new speaker to the existing group.
+
+**Example:**
+```yaml
+action: media_player.join
+data:
+  group_members:
+    - media_player.bose_smart_ultra_soundbar
+target:
+  entity_id: media_player.bose_music_amplifier
+```
+
+To remove a speaker from the group, use the service `media_player.unjoin`. If the target is the master speaker, the group will be dissolved. Otherwise the target will be removed from the group.
 
 ### Services
 

@@ -53,7 +53,10 @@ async def async_setup_entry(
         audio_mode = await speaker.get_audio_mode()
         entities.append(BoseAudioSelect(speaker, system_info, config_entry, audio_mode))
     except Exception as e:
-        logging.debug(f"Failed to fetch audio mode: {e}")
+        if e.args[1] == 0:
+            logging.debug(f"Speaker does not support audio mode")
+        else:
+            logging.error(f"Failed to fetch audio mode: {e}")
 
     try:
         dual_mono_setting = await speaker.get_dual_mono_setting()
@@ -61,7 +64,10 @@ async def async_setup_entry(
             BoseDualMonoSelect(speaker, system_info, config_entry, dual_mono_setting)
         )
     except Exception as e:
-        logging.debug(f"Failed to fetch dual mono settings: {e}")
+        if e.args[1] == 0:
+            logging.debug(f"Speaker does not support dual mono settings")
+        else:
+            logging.error(f"Failed to fetch dual mono settings: {e}")
 
     try:
         rebroadcast_latency_mode = await speaker.get_rebroadcast_latency_mode()
@@ -71,7 +77,10 @@ async def async_setup_entry(
             )
         )
     except Exception as e:
-        logging.debug(f"Failed to fetch rebroadcast latency mode: {e}")
+        if e.args[1] == 0:
+            logging.debug(f"Speaker does not support rebroadcast latency mode")
+        else:
+            logging.error(f"Failed to fetch rebroadcast latency mode: {e}")
 
     async_add_entities(entities, update_before_add=False)
 
