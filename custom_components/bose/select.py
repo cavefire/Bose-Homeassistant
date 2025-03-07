@@ -2,7 +2,13 @@
 
 import logging
 
-from pybose.BoseResponse import AudioMode, ContentNowPlaying, Sources
+from pybose.BoseResponse import (
+    AudioMode,
+    ContentNowPlaying,
+    DualMonoSettings,
+    Sources,
+    RebroadcastLatencyMode,
+)
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.select import SelectEntity
@@ -54,14 +60,30 @@ async def async_setup_entry(
         entities.append(BoseSourceSelect(speaker, system_info, config_entry, sources))
     except Exception as e:
         logging.warning(f"Failed to fetch sources: {e}")
-        pass
 
     try:
-        audioMode = await speaker.get_audio_mode()
-        entities.append(BoseAudioSelect(speaker, system_info, config_entry, audioMode))
+        audio_mode = await speaker.get_audio_mode()
+        entities.append(BoseAudioSelect(speaker, system_info, config_entry, audio_mode))
     except Exception as e:
         logging.debug(f"Failed to fetch audio mode: {e}")
-        pass
+
+    try:
+        dual_mono_setting = await speaker.get_dual_mono_setting()
+        entities.append(
+            BoseDualMonoSelect(speaker, system_info, config_entry, dual_mono_setting)
+        )
+    except Exception as e:
+        logging.debug(f"Failed to fetch dual mono settings: {e}")
+
+    try:
+        rebroadcast_latency_mode = await speaker.get_rebroadcast_latency_mode()
+        entities.append(
+            BoseRebroadcastLatencyModeSelect(
+                speaker, system_info, config_entry, rebroadcast_latency_mode
+            )
+        )
+    except Exception as e:
+        logging.debug(f"Failed to fetch rebroadcast latency mode: {e}")
 
     async_add_entities(entities, update_before_add=False)
 
@@ -179,41 +201,47 @@ class BoseSourceSelect(SelectEntity):
         }
 
 
-class BoseAudioSelect(SelectEntity):
-    """Representation of a Bose device audio selector."""
+class BoseBaseSelect(SelectEntity):
+    """Base class for Bose device selectors."""
 
     def __init__(
-        self, speaker: BoseSpeaker, speaker_info, config_entry, audioMode: AudioMode
+        self,
+        speaker: BoseSpeaker,
+        speaker_info,
+        config_entry,
+        mode_data,
+        mode_type,
+        name_suffix,
+        unique_id_suffix,
     ) -> None:
         """Initialize the select entity."""
         self.speaker = speaker
-        self._attr_name = f"{speaker_info['name']} Audio"
-        self._attr_unique_id = f"{config_entry.data['guid']}_audio_select"
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
+        self._attr_name = f"{speaker_info['name']} {name_suffix}"
+        self._attr_unique_id = f"{config_entry.data['guid']}_{unique_id_suffix}"
         self._attr_options = []
         self._selected_audio = None
-
         self._attr_entity_category = EntityCategory.CONFIG
 
         self.speaker.attach_receiver(self._parse_message)
-        self._parse_audio_mode(audioMode)
+        self._parse_audio_mode(mode_data, mode_type)
 
     async def async_select_option(self, option: str) -> None:
         """Change the audio mode on the speaker."""
-        await self.speaker.set_audio_mode(option)
+        await getattr(self.speaker, self._set_method)(option)
 
-    def _parse_audio_mode(self, data: AudioMode):
-        self._selected_audio = data.get("value")
-        self._attr_options = data.get("properties", {}).get("supportedValues", [])
+    def _parse_audio_mode(self, data, mode_type):
+        self._selected_audio = data.get(self._value_key)
+        self._attr_options = data.get("properties", {}).get(self._supported_key, [])
         if self.hass:
             self.async_write_ha_state()
 
     def _parse_message(self, data):
         """Parse real-time messages from the speaker."""
-        if data.get("header", {}).get("resource") == "/audio/mode":
-            self._parse_audio_mode(AudioMode(data.get("body")))
+        if data.get("header", {}).get("resource") == self._resource_path:
+            self._parse_audio_mode(self._mode_class(data.get("body")), self._mode_class)
 
     @property
     def current_option(self) -> str | None:
@@ -228,6 +256,67 @@ class BoseAudioSelect(SelectEntity):
     @property
     def device_info(self):
         """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-        }
+        return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
+
+
+class BoseAudioSelect(BoseBaseSelect):
+    """Representation of a Bose device audio selector."""
+
+    _set_method = "set_audio_mode"
+    _value_key = "value"
+    _supported_key = "supportedValues"
+    _resource_path = "/audio/mode"
+    _mode_class = AudioMode
+
+    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+        super().__init__(
+            speaker,
+            speaker_info,
+            config_entry,
+            audioMode,
+            AudioMode,
+            "Audio",
+            "audio_select",
+        )
+
+
+class BoseDualMonoSelect(BoseBaseSelect):
+    """Representation of a Bose device dual mono selector."""
+
+    _set_method = "set_dual_mono_setting"
+    _value_key = "value"
+    _supported_key = "supportedValues"
+    _resource_path = "/audio/dualMonoSelect"
+    _mode_class = DualMonoSettings
+
+    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+        super().__init__(
+            speaker,
+            speaker_info,
+            config_entry,
+            audioMode,
+            DualMonoSettings,
+            "Dual Mono",
+            "dual_mono_select",
+        )
+
+
+class BoseRebroadcastLatencyModeSelect(BoseBaseSelect):
+    """Representation of a Bose device rebroadcast latency mode selector."""
+
+    _set_method = "set_rebroadcast_latency_mode"
+    _value_key = "mode"
+    _supported_key = "supportedModes"
+    _resource_path = "/audio/rebroadcastLatency/mode"
+    _mode_class = RebroadcastLatencyMode
+
+    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+        super().__init__(
+            speaker,
+            speaker_info,
+            config_entry,
+            audioMode,
+            RebroadcastLatencyMode,
+            "Rebroadcast Latency Mode",
+            "rebroadcast_latency_mode_select",
+        )

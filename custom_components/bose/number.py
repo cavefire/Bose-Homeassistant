@@ -189,8 +189,4 @@ class BoseAudioSlider(NumberEntity):
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-            "name": self.speaker_info["name"],
-            "manufacturer": "Bose",
-            "model": self.speaker_info["productName"],
-            "sw_version": self.speaker_info["softwareVersion"],
         }
