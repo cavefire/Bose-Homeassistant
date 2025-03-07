@@ -6,8 +6,8 @@ from pybose.BoseResponse import (
     AudioMode,
     ContentNowPlaying,
     DualMonoSettings,
-    Sources,
     RebroadcastLatencyMode,
+    Sources,
 )
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -19,27 +19,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
-# Chromecast, Alexa, Airplay, (Spotify??) can not be set, only detected
-# I dont have a spotify account, so I can't test that. Feel free :)
-AVAILABLE_SOURCES = {
-    "Group": {"source": "GROUPING", "sourceAccount": "grouping@bose.com"},
-    # "Spotify": {"source": "SPOTIFY", "sourceAccount": "SpotifyConnectUserName"},
-    # "SpotifyAlexa": {"source": "SPOTIFY", "sourceAccount": "SpotifyAlexaUserName"},
-    # "Chromecast": {
-    #    "source": "CHROMECASTBUILTIN",
-    #    "sourceAccount": "chromecast_builtin@bose.com",
-    # },
-    # "Alexa": {"source": "ALEXA", "sourceAccount": "alexauser@bose.com"},
-    # "AirPlay": {"source": "AIRPLAY", "sourceAccount": "AirPlay2DefaultUserName"},
-    "UPNP": {"source": "UPNP", "sourceAccount": "UPnPUserName"},
-    "QPlay": {"source": "QPLAY", "sourceAccount": "QPlay1UserName"},  # What is that?
-    "QPlay2": {"source": "QPLAY2", "sourceAccount": "QPlay2UserName"},  # What is that?
-    "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
-    "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
-    "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
-    # TODO - Add support for these sources
-    # "Bluetooth": {"source": "BLUETOOTH", "sourceAccount": ""}
-    # "TuneIn": {"source": "TUNEIN", "sourceAccount": ""}
+HUMINZED_OPTIONS = {
+    "DYNAMIC_DIALOG": "AI Dialogue Mode",
+    "DIALOG": "Dialogue Mode",
+    "NORMAL": "Normal Mode",
+    "LEFT": "Track 1",
+    "RIGHT": "Track 2",
+    "BOTH": "Both",
+    "SYNC_TO_ROOM": "Sync With TV",
+    "SYNC_TO_ZONE": "Sync With Group",
 }
 
 
@@ -101,11 +89,12 @@ class BoseSourceSelect(SelectEntity):
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
-        """
-        TODO: find other way to filter sources.
-            "TV" is "NOT_CONFIGURED" and not visible on some devices (e.g. Soundbar 500).
-            Including them for now, but should be changed in the future
-        """
+        self._available_sources = {
+            "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
+            "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
+            "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
+        }
+
         self._attr_options = []
         for source in sources.get("sources", []):
             if (
@@ -122,7 +111,7 @@ class BoseSourceSelect(SelectEntity):
                     "SpotifyConnectUserName",
                     "DeezerUserName",
                 ):
-                    AVAILABLE_SOURCES[
+                    self._available_sources[
                         f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
                     ] = {
                         "source": source.get("sourceName", None),
@@ -130,7 +119,7 @@ class BoseSourceSelect(SelectEntity):
                         "accountId": source.get("accountId", None),
                     }
 
-                for key, value in AVAILABLE_SOURCES.items():
+                for key, value in self._available_sources.items():
                     if (
                         source.get("sourceName", None) == value["source"]
                         and source.get("sourceAccountName", None)
@@ -144,8 +133,8 @@ class BoseSourceSelect(SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change the source on the speaker."""
-        if option in AVAILABLE_SOURCES:
-            source_data = AVAILABLE_SOURCES[option]
+        if option in self._available_sources:
+            source_data = self._available_sources[option]
             self._parse_now_playing(
                 await self.speaker.set_source(
                     source_data["source"], source_data["sourceAccount"]
@@ -159,7 +148,7 @@ class BoseSourceSelect(SelectEntity):
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         """Update the selected source based on now playing data."""
-        for source_name, source_data in AVAILABLE_SOURCES.items():
+        for source_name, source_data in self._available_sources.items():
             if (
                 data.get("container", {}).get("contentItem", {}).get("source")
                 == source_data["source"]
@@ -242,7 +231,10 @@ class BoseBaseSelect(SelectEntity):
 
     def _parse_audio_mode(self, data, mode_type):
         self._selected_audio = data.get(self._value_key)
-        self._attr_options = data.get("properties", {}).get(self._supported_key, [])
+        self._attr_options = [
+            HUMINZED_OPTIONS.get(option, option)
+            for option in data.get("properties", {}).get(self._supported_key, [])
+        ]
         if self.hass:
             self.async_write_ha_state()
 
@@ -254,6 +246,8 @@ class BoseBaseSelect(SelectEntity):
     @property
     def current_option(self) -> str | None:
         """Return the currently selected option."""
+        if HUMINZED_OPTIONS.get(self._selected_audio):
+            return HUMINZED_OPTIONS.get(self._selected_audio)
         return self._selected_audio
 
     @property
