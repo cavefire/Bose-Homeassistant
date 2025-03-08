@@ -1,6 +1,5 @@
 """Support for Bose power button."""
 
-from asyncio import sleep
 import logging
 from typing import Any
 
@@ -10,8 +9,8 @@ from pybose.BoseSpeaker import BoseSpeaker
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
@@ -22,9 +21,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Bose buttons."""
-    speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
 
-    presets = await _fetch_presets(hass, config_entry)
+    presets = (
+        (await speaker.get_product_settings()).get("presets", []).get("presets", [])
+    )
 
     entities = [
         BosePresetbutton(speaker, config_entry, preset, presetNum)
@@ -37,11 +38,13 @@ async def async_setup_entry(
         update_before_add=False,
     )
 
-    # update presets every 5 minutes
-    async def _update_presets():
-        while True:
+    def parse_message(data):
+        resource = data.get("header", {}).get("resource")
+        body = data.get("body", {})
+        if resource == "/system/productSettings":
+            presets = body.get("presets", {}).get("presets", {})
+
             processed_presets = []
-            presets = await _fetch_presets(hass, config_entry)
             for entity in entities:
                 entity.update_preset(presets.get(entity.preset_num))
                 processed_presets.append(entity.preset_num)
@@ -54,34 +57,8 @@ async def async_setup_entry(
                         [entity],
                         update_before_add=False,
                     )
-            await sleep(300)
 
-    hass.loop.create_task(_update_presets())
-
-
-async def _fetch_presets(
-    hass: HomeAssistant, config_entry: ConfigEntry
-) -> dict[str, Preset]:
-    auth = hass.data[DOMAIN][config_entry.entry_id]["auth"]
-    login_result = auth.getControlToken()
-
-    if login_result["access_token"] != config_entry.data["access_token"]:
-        logging.debug("Updating access token")
-        hass.config_entries.async_update_entry(
-            config_entry,
-            data={
-                **config_entry.data,
-                "access_token": login_result["access_token"],
-                "refresh_token": login_result["refresh_token"],
-                "bose_person_id": login_result["bose_person_id"],
-            },
-        )
-
-    product_info = await hass.async_add_executor_job(
-        hass.data[DOMAIN][config_entry.entry_id]["auth"].fetchProductInformation,
-        config_entry.data["guid"],
-    )
-    return product_info.get("presets", [])
+    speaker.attach_receiver(parse_message)
 
 
 class BosePresetbutton(ButtonEntity):
