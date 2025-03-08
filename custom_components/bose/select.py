@@ -19,14 +19,26 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import DOMAIN
 
 HUMINZED_OPTIONS = {
+    # Audio Mode
     "DYNAMIC_DIALOG": "AI Dialogue Mode",
     "DIALOG": "Dialogue Mode",
     "NORMAL": "Normal Mode",
+    # Dual Mono
     "LEFT": "Track 1",
     "RIGHT": "Track 2",
     "BOTH": "Both",
+    # Rebroadcast Latency
     "SYNC_TO_ROOM": "Sync With TV",
     "SYNC_TO_ZONE": "Sync With Group",
+    # CEC
+    "ON": "CEC active",
+    "OFF": "CEC inactive",
+    "ALTERNATE_ON": "Option 2",
+    "ALTMODE_3": "Option 3",
+    "ALTMODE_4": "Option 4",
+    "ALTMODE_5": "Option 5",
+    "ALTMODE_6": "Option 6",
+    "ALTMODE_7": "Option 7",
 }
 
 
@@ -127,7 +139,10 @@ class BoseSourceSelect(SelectEntity):
                 return
 
         self._selected_source = (
-            data.get("container", {}).get("contentItem", {}).get("source").capitalize()
+            data.get("container", {})
+            .get("contentItem", {})
+            .get("source", "Unknown")
+            .capitalize()
         )
         if self.hass:
             self.async_write_ha_state()
@@ -217,6 +232,12 @@ class BoseBaseSelect(SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Change the audio mode on the speaker."""
+
+        for real_option, huminzed_option in HUMINZED_OPTIONS.items():
+            if option == huminzed_option:
+                option = real_option
+                break
+
         await getattr(self.speaker, self._set_method)(option)
 
     def _parse_audio_mode(self, data, mode_type):

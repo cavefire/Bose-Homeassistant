@@ -24,7 +24,7 @@ async def async_setup_entry(
     speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
 
     presets = (
-        (await speaker.get_product_settings()).get("presets", []).get("presets", [])
+        (await speaker.get_product_settings()).get("presets", None).get("presets", [])
     )
 
     entities = [

@@ -140,7 +140,8 @@ class BoseAudioSlider(NumberEntity):
 
     def _parse_audio(self, data: Audio):
         self._current_value = data.get("value", 0)
-        self.async_write_ha_state()
+        if self.hass:
+            self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch the current value of the setting."""
