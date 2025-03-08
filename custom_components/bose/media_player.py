@@ -324,7 +324,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._media_position
 
     @property
-    def media_position_updated_at(self) -> dt_util.datetime:
+    def media_position_updated_at(self) -> dt_util.dt:
         """Return the last time the media position was updated."""
         return self._last_update
 
