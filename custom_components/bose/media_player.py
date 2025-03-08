@@ -345,6 +345,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
             return MediaPlayerEntityFeature.PLAY
         return (
             MediaPlayerEntityFeature.TURN_OFF
+            | MediaPlayerEntityFeature.TURN_ON
             | (
                 MediaPlayerEntityFeature.NEXT_TRACK
                 if self._now_playing_result.get("state", {}).get("canSkipNext", False)
