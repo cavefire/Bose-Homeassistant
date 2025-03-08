@@ -3,6 +3,10 @@
 This is a custom component for Home Assistant to integrate with Bose soundbars / speakers.
 The speakers are controlled 100% locally. However, a cloud account is needed and required configured in the integration. Read more about this in the [BOSE Account](#bose-account) section.
 
+![Preview](images/entities.jpg)
+
+![Preview](images/media_player.jpg)
+
 ## Installation
 
 ### Using HACS
@@ -37,21 +41,25 @@ So this integration is making use of `pybose`'s authentication. You can find mor
 
 This is the list of features implemented in the integration. Non-marked features are not yet implemented. Feel free to do so!
 
+- [x] Control power
 - [x] Control volume
 - [x] See current volume
-- [x] See currently playing media (image and title)
-- [ ] Control power
+- [x] See currently playing media (title, artist, album, cover, duration and position)
 - [x] Control media (play, pause, next, previous)
-- [x] Switch to TV source
-- [x] Switch to aux sources
+- [x] Select sources (aux, chinch, optical - based on the speaker)
 - [ ] Control bluetooth 
-- [x] Audio setup (bass, treble, ...)
-- [x] Configure bass module / surround speakers
+- [x] Audio setup (bass, treble, center, surround)
+- [x] Enable / disable bass module and gain
+- [x] Enable / disable surround speakers 
 - [x] Group speakers
-- [ ] HDMI settings
-- [ ] Standby timer settings
-- [ ] Optical activation settings
+- [x] HDMI-CEC settings
+- [x] Standby timer settings
+- [x] Optical activation settings
 - [x] Battery Level (for portable speakers)
+- [x] Rebroadcast latency settings
+- [x] Standby timer settings
+- [x] Dialog settings (AI Dialog Mode, Dialog Mode, Normal - based on the speaker)
+- [x] Dual Mono settings
 - [x] Send arbitrary request via service
 
 ### Group speakers
@@ -106,6 +114,10 @@ This project is a work in progress, and contributions are welcome!
 If you encounter issues, have feature requests, or want to contribute, feel free to submit a pull request or open an issue.
 
 My goal is to split the integration from the `pybose` library, so that it can be used in other projects as well. So every function that is calling the speaker's websocket, should be implemented in the `pybose` library. The integration should only be responsible for the Home Assistant part.
+
+If you like this project, consider supporting me 
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png)](https://www.buymeacoffee.com/cavefire)
+
 
 ## Disclaimer
 This project is not affiliated with Bose Corporation. The API is reverse-engineered and may break at any time. Use at your own risk.

@@ -179,7 +179,8 @@ class BoseSourceSelect(SelectEntity):
                         and source.get("sourceAccountName", None)
                         == value["sourceAccount"]
                     ):
-                        self._attr_options.append(key)
+                        if key not in self._attr_options:
+                            self._attr_options.append(key)
 
         now_playing = await self.speaker.get_now_playing()
         self._parse_now_playing(now_playing)
