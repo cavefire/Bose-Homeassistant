@@ -1,13 +1,11 @@
 """Support for Bose source selection."""
 
-import logging
-
 from pybose.BoseResponse import (
     AudioMode,
+    CecSettings,
     ContentNowPlaying,
     DualMonoSettings,
     RebroadcastLatencyMode,
-    Sources,
 )
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -15,19 +13,32 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 
 HUMINZED_OPTIONS = {
+    # Audio Mode
     "DYNAMIC_DIALOG": "AI Dialogue Mode",
     "DIALOG": "Dialogue Mode",
     "NORMAL": "Normal Mode",
+    # Dual Mono
     "LEFT": "Track 1",
     "RIGHT": "Track 2",
     "BOTH": "Both",
+    # Rebroadcast Latency
     "SYNC_TO_ROOM": "Sync With TV",
     "SYNC_TO_ZONE": "Sync With Group",
+    # CEC
+    "ON": "CEC active",
+    "OFF": "CEC inactive",
+    "ALTERNATE_ON": "Option 2",
+    "ALTMODE_3": "Option 3",
+    "ALTMODE_4": "Option 4",
+    "ALTMODE_5": "Option 5",
+    "ALTMODE_6": "Option 6",
+    "ALTMODE_7": "Option 7",
 }
 
 
@@ -37,50 +48,27 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up Bose select entity."""
-    speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
 
     entities = []
 
-    # Fetch sources
-    try:
-        sources = await speaker.get_sources()
-        entities.append(BoseSourceSelect(speaker, system_info, config_entry, sources))
-    except Exception as e:
-        logging.warning(f"Failed to fetch sources: {e}")
+    if speaker.has_capability("/system/sources"):
+        entities.append(BoseSourceSelect(speaker, system_info, config_entry, hass))
 
-    try:
-        audio_mode = await speaker.get_audio_mode()
-        entities.append(BoseAudioSelect(speaker, system_info, config_entry, audio_mode))
-    except Exception as e:
-        if e.args[1] == 0:
-            logging.debug(f"Speaker does not support audio mode")
-        else:
-            logging.error(f"Failed to fetch audio mode: {e}")
+    if speaker.has_capability("/audio/mode"):
+        entities.append(BoseAudioSelect(speaker, system_info, config_entry, hass))
 
-    try:
-        dual_mono_setting = await speaker.get_dual_mono_setting()
+    if speaker.has_capability("/audio/dualMonoSelect"):
+        entities.append(BoseDualMonoSelect(speaker, system_info, config_entry, hass))
+
+    if speaker.has_capability("/audio/rebroadcastLatency/mode"):
         entities.append(
-            BoseDualMonoSelect(speaker, system_info, config_entry, dual_mono_setting)
+            BoseRebroadcastLatencyModeSelect(speaker, system_info, config_entry, hass)
         )
-    except Exception as e:
-        if e.args[1] == 0:
-            logging.debug(f"Speaker does not support dual mono settings")
-        else:
-            logging.error(f"Failed to fetch dual mono settings: {e}")
 
-    try:
-        rebroadcast_latency_mode = await speaker.get_rebroadcast_latency_mode()
-        entities.append(
-            BoseRebroadcastLatencyModeSelect(
-                speaker, system_info, config_entry, rebroadcast_latency_mode
-            )
-        )
-    except Exception as e:
-        if e.args[1] == 0:
-            logging.debug(f"Speaker does not support rebroadcast latency mode")
-        else:
-            logging.error(f"Failed to fetch rebroadcast latency mode: {e}")
+    if speaker.has_capability("/cec"):
+        entities.append(BoseCecSettingsSelect(speaker, system_info, config_entry, hass))
 
     async_add_entities(entities, update_before_add=False)
 
@@ -89,7 +77,7 @@ class BoseSourceSelect(SelectEntity):
     """Representation of a Bose device source selector."""
 
     def __init__(
-        self, speaker: BoseSpeaker, speaker_info, config_entry, sources: Sources
+        self, speaker: BoseSpeaker, speaker_info, config_entry, hass: HomeAssistant
     ) -> None:
         """Initialize the select entity."""
         self.speaker = speaker
@@ -105,40 +93,11 @@ class BoseSourceSelect(SelectEntity):
         }
 
         self._attr_options = []
-        for source in sources.get("sources", []):
-            if (
-                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED"))
-                and source.get("sourceAccountName", None)
-                and source.get("sourceName", None)
-            ):
-                if source.get("sourceName", None) in (
-                    "AMAZON",
-                    "SPOTIFY",
-                    "DEEZER",
-                ) and source.get("sourceAccountName", None) not in (
-                    "AlexaUserName",
-                    "SpotifyConnectUserName",
-                    "DeezerUserName",
-                ):
-                    self._available_sources[
-                        f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
-                    ] = {
-                        "source": source.get("sourceName", None),
-                        "sourceAccount": source.get("sourceAccountName", None),
-                        "accountId": source.get("accountId", None),
-                    }
-
-                for key, value in self._available_sources.items():
-                    if (
-                        source.get("sourceName", None) == value["source"]
-                        and source.get("sourceAccountName", None)
-                        == value["sourceAccount"]
-                    ):
-                        self._attr_options.append(key)
-
         self._selected_source = None
 
         self.speaker.attach_receiver(self._parse_message)
+
+        hass.async_create_task(self.async_update())
 
     async def async_select_option(self, option: str) -> None:
         """Change the source on the speaker."""
@@ -180,12 +139,49 @@ class BoseSourceSelect(SelectEntity):
                 return
 
         self._selected_source = (
-            data.get("container", {}).get("contentItem", {}).get("source").capitalize()
+            data.get("container", {})
+            .get("contentItem", {})
+            .get("source", "Unknown")
+            .capitalize()
         )
-        self.async_write_ha_state()
+        if self.hass:
+            self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch the current playing source."""
+        sources = await self.speaker.get_sources()
+        for source in sources.get("sources", []):
+            if (
+                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED"))
+                and source.get("sourceAccountName", None)
+                and source.get("sourceName", None)
+            ):
+                if source.get("sourceName", None) in (
+                    "AMAZON",
+                    "SPOTIFY",
+                    "DEEZER",
+                ) and source.get("sourceAccountName", None) not in (
+                    "AlexaUserName",
+                    "SpotifyConnectUserName",
+                    "DeezerUserName",
+                ):
+                    self._available_sources[
+                        f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
+                    ] = {
+                        "source": source.get("sourceName", None),
+                        "sourceAccount": source.get("sourceAccountName", None),
+                        "accountId": source.get("accountId", None),
+                    }
+
+                for key, value in self._available_sources.items():
+                    if (
+                        source.get("sourceName", None) == value["source"]
+                        and source.get("sourceAccountName", None)
+                        == value["sourceAccount"]
+                    ):
+                        if key not in self._attr_options:
+                            self._attr_options.append(key)
+
         now_playing = await self.speaker.get_now_playing()
         self._parse_now_playing(now_playing)
 
@@ -200,7 +196,7 @@ class BoseSourceSelect(SelectEntity):
         return self._attr_unique_id
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
@@ -215,10 +211,10 @@ class BoseBaseSelect(SelectEntity):
         speaker: BoseSpeaker,
         speaker_info,
         config_entry,
-        mode_data,
         mode_type,
         name_suffix,
         unique_id_suffix,
+        hass: HomeAssistant,
     ) -> None:
         """Initialize the select entity."""
         self.speaker = speaker
@@ -232,10 +228,17 @@ class BoseBaseSelect(SelectEntity):
         self._attr_entity_category = EntityCategory.CONFIG
 
         self.speaker.attach_receiver(self._parse_message)
-        self._parse_audio_mode(mode_data, mode_type)
+
+        hass.async_create_task(self.async_update())
 
     async def async_select_option(self, option: str) -> None:
         """Change the audio mode on the speaker."""
+
+        for real_option, huminzed_option in HUMINZED_OPTIONS.items():
+            if option == huminzed_option:
+                option = real_option
+                break
+
         await getattr(self.speaker, self._set_method)(option)
 
     def _parse_audio_mode(self, data, mode_type):
@@ -252,6 +255,11 @@ class BoseBaseSelect(SelectEntity):
         if data.get("header", {}).get("resource") == self._resource_path:
             self._parse_audio_mode(self._mode_class(data.get("body")), self._mode_class)
 
+    async def async_update(self) -> None:
+        """Fetch the current audio mode."""
+        data = await getattr(self.speaker, self._get_method)()
+        self._parse_audio_mode(data, self._mode_class)
+
     @property
     def current_option(self) -> str | None:
         """Return the currently selected option."""
@@ -265,7 +273,7 @@ class BoseBaseSelect(SelectEntity):
         return self._attr_unique_id
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
 
@@ -274,20 +282,24 @@ class BoseAudioSelect(BoseBaseSelect):
     """Representation of a Bose device audio selector."""
 
     _set_method = "set_audio_mode"
+    _get_method = "get_audio_mode"
     _value_key = "value"
     _supported_key = "supportedValues"
     _resource_path = "/audio/mode"
     _mode_class = AudioMode
 
-    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
             config_entry,
-            audioMode,
             AudioMode,
             "Audio",
             "audio_select",
+            hass,
         )
 
 
@@ -295,20 +307,24 @@ class BoseDualMonoSelect(BoseBaseSelect):
     """Representation of a Bose device dual mono selector."""
 
     _set_method = "set_dual_mono_setting"
+    _get_method = "get_dual_mono_setting"
     _value_key = "value"
     _supported_key = "supportedValues"
     _resource_path = "/audio/dualMonoSelect"
     _mode_class = DualMonoSettings
 
-    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
             config_entry,
-            audioMode,
             DualMonoSettings,
             "Dual Mono",
             "dual_mono_select",
+            hass,
         )
 
 
@@ -316,18 +332,47 @@ class BoseRebroadcastLatencyModeSelect(BoseBaseSelect):
     """Representation of a Bose device rebroadcast latency mode selector."""
 
     _set_method = "set_rebroadcast_latency_mode"
+    _get_method = "get_rebroadcast_latency_mode"
     _value_key = "mode"
     _supported_key = "supportedModes"
     _resource_path = "/audio/rebroadcastLatency/mode"
     _mode_class = RebroadcastLatencyMode
 
-    def __init__(self, speaker, speaker_info, config_entry, audioMode):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
             config_entry,
-            audioMode,
             RebroadcastLatencyMode,
             "Rebroadcast Latency Mode",
             "rebroadcast_latency_mode_select",
+            hass,
+        )
+
+
+class BoseCecSettingsSelect(BoseBaseSelect):
+    """Representation of a Bose device CEC settings selector."""
+
+    _set_method = "set_cec_settings"
+    _get_method = "get_cec_settings"
+    _value_key = "mode"
+    _supported_key = "supportedModes"
+    _resource_path = "/cec"
+    _mode_class = CecSettings
+
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
+        super().__init__(
+            speaker,
+            speaker_info,
+            config_entry,
+            CecSettings,
+            "CEC",
+            "cec_settings_select",
+            hass,
         )

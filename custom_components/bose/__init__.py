@@ -4,7 +4,7 @@ import json
 import logging
 
 from pybose.BoseAuth import BoseAuth
-from pybose.BoseResponse import Accessories, BoseApiProduct
+from pybose.BoseResponse import Accessories
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
