@@ -4,7 +4,6 @@ import json
 import logging
 
 from pybose.BoseAuth import BoseAuth
-from pybose.BoseCloudResponse import BoseApiProduct
 from pybose.BoseResponse import Accessories
 from pybose.BoseSpeaker import BoseSpeaker
 

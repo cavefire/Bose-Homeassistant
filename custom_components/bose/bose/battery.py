@@ -9,6 +9,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 
 from ..const import DOMAIN
@@ -31,16 +32,17 @@ def dummy_battery_status() -> Battery:
 class BoseBatteryBase(Entity):
     """Base class for Bose battery sensors."""
 
-    def __init__(self, speaker: BoseSpeaker, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self, speaker: BoseSpeaker, config_entry: ConfigEntry, hass: HomeAssistant
+    ) -> None:
         """Initialize the sensor."""
         self.speaker = speaker
         self.config_entry = config_entry
         self._attr_device_info = {
             "identifiers": {(DOMAIN, config_entry.data["guid"])},
-            "name": config_entry.data["name"],
-            "manufacturer": "Bose",
-            "model": config_entry.data["serial"],
         }
+
+        hass.async_create_task(self.async_update())
 
     async def async_update(self) -> None:
         """Fetch the latest battery status."""
@@ -56,84 +58,3 @@ class BoseBatteryBase(Entity):
                 self.config_entry.data["ip"],
             )
             logging.exception()
-
-
-class BoseBatteryLevelSensor(BoseBatteryBase, SensorEntity):
-    """Sensor for battery level."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, battery_status: Battery, config_entry
-    ) -> None:
-        """Initialize battery level sensor."""
-        super().__init__(speaker, config_entry)
-        self._attr_name = f"{config_entry.data['name']} Battery Level"
-        self._attr_unique_id = f"{config_entry.data['guid']}_battery_level"
-        self.native_unit_of_measurement = "%"
-        self._attr_device_class = SensorDeviceClass.BATTERY
-        self.update_from_battery_status(battery_status)
-
-    def update_from_battery_status(self, battery_status: Battery):
-        """Update sensor state."""
-        self.native_value = battery_status.percent
-
-
-class BoseBatteryChargingSensor(BoseBatteryBase, BinarySensorEntity):
-    """Sensor for battery charging state."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, battery_status: Battery, config_entry
-    ) -> None:
-        """Initialize charging state sensor."""
-        super().__init__(speaker, config_entry)
-        self._attr_name = f"{config_entry.data['name']} Charging State"
-        self._attr_unique_id = f"{config_entry.data['guid']}_charging_state"
-        self._attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
-        self.update_from_battery_status(battery_status)
-
-    def update_from_battery_status(self, battery_status: Battery):
-        """Update sensor state."""
-        self.is_on = battery_status.chargerConnected
-
-
-class BoseBatteryTimeTillFull(BoseBatteryBase, SensorEntity):
-    """Sensor for time till full charge."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, battery_status: Battery, config_entry
-    ) -> None:
-        """Initialize charging state sensor."""
-        super().__init__(speaker, config_entry)
-        self._attr_name = f"{config_entry.data['name']} Time Till Full"
-        self._attr_unique_id = f"{config_entry.data['guid']}_time_till_full"
-        self._attr_device_class = SensorDeviceClass.DURATION
-        self.native_unit_of_measurement = "min"
-        self.update_from_battery_status(battery_status)
-
-    def update_from_battery_status(self, battery_status: Battery):
-        """Update sensor state."""
-        if battery_status.minutesToFull == 65535:
-            self.native_value = None
-        else:
-            self.native_value = battery_status.minutesToFull
-
-
-class BoseBatteryTimeTillEmpty(BoseBatteryBase, SensorEntity):
-    """Sensor for time till full charge."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, battery_status: Battery, config_entry
-    ) -> None:
-        """Initialize charging state sensor."""
-        super().__init__(speaker, config_entry)
-        self._attr_name = f"{config_entry.data['name']} Time till empty"
-        self._attr_unique_id = f"{config_entry.data['guid']}_time_till_empty"
-        self._attr_device_class = SensorDeviceClass.DURATION
-        self.native_unit_of_measurement = "min"
-        self.update_from_battery_status(battery_status)
-
-    def update_from_battery_status(self, battery_status: Battery):
-        """Update sensor state."""
-        if battery_status.minutesToEmpty == 65535:
-            self.native_value = None
-        else:
-            self.native_value = battery_status.minutesToEmpty

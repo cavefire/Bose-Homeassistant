@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -28,7 +29,7 @@ async def async_setup_entry(
     accessories = hass.data[DOMAIN][config_entry.entry_id]["accessories"]
 
     entities = []
-    if await speaker.has_capability("/system/power/timeouts"):
+    if speaker.has_capability("/system/power/timeouts"):
         entities = [BoseStandbySettingSwitch(speaker, system_info, config_entry, hass)]
     else:
         logging.debug("Speaker does not support system timeouts")
@@ -113,7 +114,7 @@ class BoseAccessorySwitch(SwitchEntity):
         return f"{self.config_entry.data['guid']}_{self._attribute}_switch"
 
     @property
-    def device_info(self) -> dict[str, Any]:
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
 
@@ -211,6 +212,6 @@ class BoseStandbySettingSwitch(SwitchEntity):
         return f"{self.config_entry.data['guid']}_standby_switch"
 
     @property
-    def device_info(self) -> dict[str, Any]:
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}

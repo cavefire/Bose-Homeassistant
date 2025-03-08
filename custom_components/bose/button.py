@@ -1,7 +1,6 @@
 """Support for Bose power button."""
 
 import logging
-from typing import Any
 
 from pybose.BoseResponse import Preset
 from pybose.BoseSpeaker import BoseSpeaker
@@ -10,6 +9,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -127,7 +127,7 @@ class BosePresetbutton(ButtonEntity):
         return f"{self.config_entry.data['guid']}_{self.preset_num}_button"
 
     @property
-    def device_info(self) -> dict[str, Any]:
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},

@@ -1,14 +1,11 @@
 """Support for Bose source selection."""
 
-import logging
-
 from pybose.BoseResponse import (
     AudioMode,
     CecSettings,
     ContentNowPlaying,
     DualMonoSettings,
     RebroadcastLatencyMode,
-    Sources,
 )
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -16,6 +13,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
@@ -57,7 +55,7 @@ async def async_setup_entry(
             BoseRebroadcastLatencyModeSelect(speaker, system_info, config_entry, hass)
         )
 
-    if await speaker.has_capability("/cec"):
+    if speaker.has_capability("/cec"):
         entities.append(BoseCecSettingsSelect(speaker, system_info, config_entry, hass))
 
     async_add_entities(entities, update_before_add=False)
@@ -131,7 +129,8 @@ class BoseSourceSelect(SelectEntity):
         self._selected_source = (
             data.get("container", {}).get("contentItem", {}).get("source").capitalize()
         )
-        self.async_write_ha_state()
+        if self.hass:
+            self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Fetch the current playing source."""
@@ -181,7 +180,7 @@ class BoseSourceSelect(SelectEntity):
         return self._attr_unique_id
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {
             "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
@@ -252,7 +251,7 @@ class BoseBaseSelect(SelectEntity):
         return self._attr_unique_id
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
 
@@ -267,7 +266,10 @@ class BoseAudioSelect(BoseBaseSelect):
     _resource_path = "/audio/mode"
     _mode_class = AudioMode
 
-    def __init__(self, speaker, speaker_info, config_entry, hass):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
@@ -289,7 +291,10 @@ class BoseDualMonoSelect(BoseBaseSelect):
     _resource_path = "/audio/dualMonoSelect"
     _mode_class = DualMonoSettings
 
-    def __init__(self, speaker, speaker_info, config_entry, hass):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
@@ -311,7 +316,10 @@ class BoseRebroadcastLatencyModeSelect(BoseBaseSelect):
     _resource_path = "/audio/rebroadcastLatency/mode"
     _mode_class = RebroadcastLatencyMode
 
-    def __init__(self, speaker, speaker_info, config_entry, hass):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,
@@ -333,7 +341,10 @@ class BoseCecSettingsSelect(BoseBaseSelect):
     _resource_path = "/cec"
     _mode_class = CecSettings
 
-    def __init__(self, speaker, speaker_info, config_entry, hass):
+    def __init__(
+        self, speaker, speaker_info, config_entry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the select entity."""
         super().__init__(
             speaker,
             speaker_info,

@@ -12,9 +12,10 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
-from homeassistant.util import dt
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 
@@ -28,7 +29,9 @@ async def async_setup_entry(
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
 
-    async_add_entities([BoseMediaPlayer(speaker, system_info)], update_before_add=False)
+    async_add_entities(
+        [BoseMediaPlayer(speaker, system_info, hass)], update_before_add=False
+    )
 
 
 class BoseMediaPlayer(MediaPlayerEntity):
@@ -38,6 +41,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self,
         speaker: BoseSpeaker,
         system_info: SystemInfo,
+        hass: HomeAssistant,
     ) -> None:
         """Initialize the Bose media player."""
         self.speaker = speaker
@@ -60,6 +64,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._active_group_id = None
 
         speaker.attach_receiver(self.parse_message)
+
+        hass.async_create_task(self.async_update())
 
     def parse_message(self, data):
         """Parse the message from the speaker."""
@@ -117,8 +123,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
     def _parse_audio_volume(self, data: AudioVolume):
         self._volume_level = data.get("value", 0) / 100
-        # TODO: Mute is implemented in another way?
-        self._muted = self._volume_level == 0
+        self._muted = data.get("muted")
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
@@ -148,7 +153,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._media_album_name = data.get("metadata", {}).get("album")
         self._media_duration = int(data.get("metadata", {}).get("duration", 999))
         self._media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
-        self._last_update = dt.utcnow()
+        self._last_update = dt_util.utcnow()
 
         self._now_playing_result: ContentNowPlaying = data
 
@@ -222,12 +227,12 @@ class BoseMediaPlayer(MediaPlayerEntity):
         await self.speaker.skip_previous()
         self.async_write_ha_state()
 
-    async def async_media_seek(self, position):
+    async def async_media_seek(self, position: float) -> None:
         """Seek the media to a specific location."""
         await self.speaker.seek(position)
         self.async_write_ha_state()
 
-    async def async_join_players(self, group_members):
+    async def async_join_players(self, group_members: list[str]) -> None:
         """Join `group_members` as a player group with the current player."""
         registry = er.async_get(self.hass)
         entities = [registry.async_get(entity_id) for entity_id in group_members]
@@ -239,7 +244,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
             for entity in entities
         ]
 
-        if not self._group_members[0] == self.entity_id:
+        if self._group_members[0] != self.entity_id:
             logging.warning(
                 "Speakers can only join the master of the group, which is %s",
                 self._group_members[0],
@@ -257,7 +262,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
             await self.speaker.set_active_group(guids)
         self.async_write_ha_state()
 
-    async def async_unjoin_player(self):
+    async def async_unjoin_player(self) -> None:
         """Unjoin the player from a group."""
 
         master_entity_id = self._group_members[0]
@@ -319,7 +324,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._media_position
 
     @property
-    def media_position_updated_at(self):
+    def media_position_updated_at(self) -> dt_util.datetime:
         """Return the last time the media position was updated."""
         return self._last_update
 
@@ -380,12 +385,12 @@ class BoseMediaPlayer(MediaPlayerEntity):
         )
 
     @property
-    def group_members(self):
+    def group_members(self) -> list[str]:
         """Return the list of members of this player's group."""
         return self._group_members
 
     @property
-    def device_info(self) -> dict | None:
+    def device_info(self) -> DeviceInfo:
         """Return device information for Home Assistant integration."""
         return {
             "identifiers": {(DOMAIN, self._device_id)},
