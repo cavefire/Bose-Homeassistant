@@ -244,19 +244,19 @@ class BoseMediaPlayer(MediaPlayerEntity):
             for entity in entities
         ]
 
-        if self._group_members[0] != self.entity_id:
-            logging.warning(
-                "Speakers can only join the master of the group, which is %s",
-                self._group_members[0],
-            )
-            logging.warning("Running action on master speaker.")
-            master: BoseSpeaker = self.hass.data[DOMAIN][
-                registry.async_get(self._group_members[0]).config_entry_id
-            ]["speaker"]
-            await master.add_to_active_group(self._active_group_id, guids)
-            return
-
         if self._active_group_id is not None:
+            if self._group_members[0] != self.entity_id:
+                logging.warning(
+                    "Speakers can only join the master of the group, which is %s",
+                    self._group_members[0],
+                )
+                logging.warning("Running action on master speaker.")
+                master: BoseSpeaker = self.hass.data[DOMAIN][
+                    registry.async_get(self._group_members[0]).config_entry_id
+                ]["speaker"]
+                await master.add_to_active_group(self._active_group_id, guids)
+                return
+
             await self.speaker.add_to_active_group(self._active_group_id, guids)
         else:
             await self.speaker.set_active_group(guids)
