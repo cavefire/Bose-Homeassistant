@@ -152,7 +152,7 @@ class BoseSourceSelect(SelectEntity):
         sources = await self.speaker.get_sources()
         for source in sources.get("sources", []):
             if (
-                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED"))
+                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED") or source.get("accountId", "TV"))
                 and source.get("sourceAccountName", None)
                 and source.get("sourceName", None)
             ):
