@@ -4,7 +4,7 @@ import json
 import logging
 
 from pybose.BoseAuth import BoseAuth
-from pybose.BoseResponse import Accessories
+from pybose.BoseResponse import Accessories, NetworkStateEnum
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
@@ -87,9 +87,26 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # Register device in Home Assistant
     device_registry = dr.async_get(hass)
 
+    identifiers = {(DOMAIN, config_entry.data["guid"])}
+
+    if speaker.has_capability("/network/status"):
+        network_status = await speaker.get_network_status()
+
+        for interface in network_status.get("interfaces", []):
+            if interface.get("state", NetworkStateEnum.DOWN) == NetworkStateEnum.UP:
+                identifiers.add(
+                    (
+                        DOMAIN,
+                        ":".join(
+                            interface.get("macAddress")[i : i + 2]
+                            for i in range(0, 12, 2)
+                        ),
+                    )
+                )
+
     device_registry.async_get_or_create(
         config_entry_id=config_entry.entry_id,
-        identifiers={(DOMAIN, config_entry.data["guid"])},
+        identifiers=identifiers,
         manufacturer="Bose",
         name=system_info["name"],
         model=system_info["productName"],
