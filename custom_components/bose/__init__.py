@@ -52,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             },
         )
 
-    speaker = await connect_to_bose(config_entry)
+    speaker = await connect_to_bose(config_entry, auth)
 
     if not speaker:
         discovered = await config_flow.Discover_Bose_Devices(hass)
@@ -219,12 +219,13 @@ async def registerAccessories(
         )
 
 
-async def connect_to_bose(config_entry):
+async def connect_to_bose(config_entry, auth: BoseAuth):
     """Connect to the Bose speaker."""
     data = config_entry.data
     speaker = BoseSpeaker(
         control_token=data["access_token"],
         host=data["ip"],
+        bose_auth=auth
     )
 
     try:
