@@ -2,6 +2,7 @@
 
 import json
 import logging
+import asyncio
 
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseResponse import Accessories, NetworkStateEnum
@@ -28,29 +29,43 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         "config": config_entry.data  # Store configuration data
     }
 
-    # Offload token validation to avoid blocking the event loop
-    is_token_valid = await hass.async_add_executor_job(
-        auth.is_token_valid, config_entry.data.get("access_token")
+    if config_entry.data.get("access_token") is not None:
+        # Using existing access token
+        logging.debug("Using existing access token for %s", config_entry.data["mail"])
+        auth.set_access_token(
+            config_entry.data["access_token"],
+            config_entry.data["refresh_token"],
+            config_entry.data["bose_person_id"],
+        )
+    else:
+        logging.debug("No access token found, logging in with credentials")
+
+        is_token_valid = await hass.async_add_executor_job(
+            auth.is_token_valid, config_entry.data.get("access_token")
+        )
+
+        if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
+            login_result = await hass.async_add_executor_job(
+                auth.getControlToken,
+                config_entry.data["mail"],
+                config_entry.data["password"],
+                True,
+            )
+
+            # Update the config entry properly using Home Assistant's API
+            hass.config_entries.async_update_entry(
+                config_entry,
+                data={
+                    **config_entry.data,
+                    "access_token": login_result["access_token"],
+                    "refresh_token": login_result["refresh_token"],
+                    "bose_person_id": login_result["bose_person_id"],
+                },
+            )
+
+    hass.async_create_background_task(
+        refresh_token(hass, config_entry, auth), "Refresh token"
     )
-
-    if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
-        login_result = await hass.async_add_executor_job(
-            auth.getControlToken,
-            config_entry.data["mail"],
-            config_entry.data["password"],
-            True,
-        )
-
-        # Update the config entry properly using Home Assistant's API
-        hass.config_entries.async_update_entry(
-            config_entry,
-            data={
-                **config_entry.data,
-                "access_token": login_result["access_token"],
-                "refresh_token": login_result["refresh_token"],
-                "bose_person_id": login_result["bose_person_id"],
-            },
-        )
 
     speaker = await connect_to_bose(config_entry, auth)
 
@@ -78,10 +93,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             return False
 
         config_entry = hass.config_entries.async_get_entry(config_entry.entry_id)
-        speaker = await connect_to_bose(config_entry)
+        speaker = await connect_to_bose(config_entry, auth)
 
     system_info = await speaker.get_system_info()
     capabilities = await speaker.get_capabilities()
+
     await speaker.subscribe()
 
     # Register device in Home Assistant
@@ -142,6 +158,48 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             "button",
         ],
     )
+
+    return True
+
+
+async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: BoseAuth):
+    """Refresh the token periodically."""
+    while True:
+        timeToSleep = auth.get_token_validity_time() * 0.8
+        if timeToSleep > 0:
+            logging.debug("Sleeping for %s seconds", timeToSleep)
+            await asyncio.sleep(timeToSleep)  # Allow other tasks to run
+        logging.warning("Refreshing token for %s", config_entry.data["mail"])
+        try:
+            new_token = await hass.async_add_executor_job(auth.do_token_refresh)
+            if new_token:
+                hass.config_entries.async_update_entry(
+                    config_entry,
+                    data={
+                        **config_entry.data,
+                        "access_token": new_token["access_token"],
+                        "refresh_token": new_token["refresh_token"],
+                    },
+                )
+        except Exception as e:  # noqa: BLE001
+            logging.error(
+                "Failed to refresh token for %s: %s", config_entry.data["mail"], str(e)
+            )
+            break
+
+
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
+    # Unsubscribe from the speaker
+    speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    if speaker:
+        await speaker.disconnect()
+
+    # Remove the speaker object from hass.data
+    hass.data[DOMAIN].pop(config_entry.entry_id, None)
+
+    # Unload the config entry
+    await hass.config_entries.async_unload(config_entry.entry_id)
     return True
 
 
@@ -223,9 +281,7 @@ async def connect_to_bose(config_entry, auth: BoseAuth):
     """Connect to the Bose speaker."""
     data = config_entry.data
     speaker = BoseSpeaker(
-        control_token=data["access_token"],
-        host=data["ip"],
-        bose_auth=auth
+        control_token=data["access_token"], host=data["ip"], bose_auth=auth
     )
 
     try:
