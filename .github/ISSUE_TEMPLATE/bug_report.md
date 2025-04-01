@@ -20,5 +20,10 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
+**Setup**
+Home Assistant: <Version of Homeassistant>
+Integration: <Version of the Bose integration>
+Device: <Your Device Model. E.g. Bose Smart Ultra Soundbar>
+
 **Additional context**
 Add any other context about the problem here.
