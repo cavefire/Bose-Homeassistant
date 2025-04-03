@@ -1,13 +1,17 @@
 """Support for Bose battery status sensor."""
 
+import logging
+
 from pybose import BoseSpeaker
 from pybose.BoseResponse import Battery
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import refresh_token
 from .bose.battery import BoseBatteryBase
 from .const import DOMAIN
 
@@ -29,6 +33,12 @@ async def async_setup_entry(
             ],
             update_before_add=False,
         )
+
+    async_add_entities(
+        [
+            BoseAuthValidTimeSensor(speaker, config_entry, hass),
+        ]
+    )
 
 
 class BoseBatteryLevelSensor(BoseBatteryBase, SensorEntity):
@@ -98,3 +108,50 @@ class BoseBatteryTimeTillEmpty(BoseBatteryBase, SensorEntity):
             self.native_value = None
         else:
             self.native_value = battery_status.minutesToEmpty
+
+
+class BoseAuthValidTimeSensor(SensorEntity):
+    """Sensor for the auth valid time."""
+
+    def __init__(
+        self, speaker: BoseSpeaker, config_entry: ConfigEntry, hass: HomeAssistant
+    ) -> None:
+        """Initialize the auth valid time sensor."""
+        self._config_entry = config_entry
+        self._attr_name = f"{config_entry.data['name']} Auth Valid Time"
+        self._attr_unique_id = f"{config_entry.data['guid']}_auth_valid_time"
+        self._attr_icon = "mdi:clock"
+        self.speaker = speaker
+        self._hass = hass
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, config_entry.data["guid"])},
+        }
+        self.entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> str:
+        """Return the auth valid time in a human-readable format."""
+        seconds_until_expire = self.speaker._bose_auth.get_token_validity_time()  # noqa: SLF001
+
+        if seconds_until_expire < 300:
+            logging.warning(
+                "Refreshing token from sensor. This should not happen... Please open an issue."
+            )
+            self.hass.async_create_task(
+                refresh_token(self.hass, self._config_entry, self.speaker._bose_auth)  # noqa: SLF001
+            )
+
+        if seconds_until_expire is None or seconds_until_expire <= 0:
+            return None
+
+        minutes, seconds = divmod(seconds_until_expire, 60)
+        hours, minutes = divmod(minutes, 60)
+        days, hours = divmod(hours, 24)
+
+        if days > 0:
+            return f"{days}d {hours}h {minutes}m {seconds}s"
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        if minutes > 0:
+            return f"{minutes}m {seconds}s"
+        return f"{seconds}s"
