@@ -43,10 +43,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.discovered_ips = []  # List to store discovered IPs
         self.mail = None
         self.password = None
-        self._login_response = None
-        self._access_token = None
-        self._refresh_token = None
-        self._bose_person_id = None
+        self._auth = None
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
@@ -56,15 +53,11 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.mail = user_input["mail"]
             self.password = user_input["password"]
 
-            self._login_response = await self.hass.async_add_executor_job(
+            login_response = await self.hass.async_add_executor_job(
                 self._login, self.mail, self.password
             )
 
-            if self._login_response:
-                self._access_token = self._login_response["access_token"]
-                self.refresh_token = self._login_response["refresh_token"]
-                self.bose_person_id = self._login_response["bose_person_id"]
-
+            if login_response:
                 if user_input.get("device") == "manual" or not user_input.get("device"):
                     return await self.async_step_manual_ip()
 
@@ -142,7 +135,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _login(self, email, password):
         """Authenticate and retrieve the control token."""
         try:
-            return BoseAuth().getControlToken(email, password, forceNew=True)
+            self._auth = BoseAuth()
+            return self._auth.getControlToken(email, password, forceNew=True)
         except Exception as e:
             logging.exception("Failed to get control token", exc_info=e)
             return None
@@ -150,7 +144,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
         try:
-            speaker = BoseSpeaker(control_token=self._access_token, host=ip)
+            speaker = BoseSpeaker(bose_auth=self._auth, host=ip)
             await speaker.connect()
             system_info = await speaker.get_system_info()
             if not system_info:
@@ -167,9 +161,9 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "mail": self.mail,
                 "password": self.password,
                 "ip": ip,
-                "bose_person_id": self._bose_person_id,
-                "access_token": self._access_token,
-                "refresh_token": self._refresh_token,
+                "bose_person_id": self._auth.getControlToken().get("bose_person_id"),
+                "access_token": self._auth.getControlToken().get("access_token"),
+                "refresh_token": self._auth.getControlToken().get("refresh_token"),
                 "guid": guid,
                 "serial": system_info["serialNumber"],
                 "name": system_info["name"],
