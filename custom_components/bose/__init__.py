@@ -1,12 +1,12 @@
 """The Bose component."""
 
+import asyncio
 import json
 import logging
-import asyncio
 
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseResponse import Accessories, NetworkStateEnum
-from pybose.BoseSpeaker import BoseSpeaker, BoseRequestException
+from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
@@ -48,6 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
 
         if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
+            logging.warning("Token is invalid or expired. Logging in with credentials")
             login_result = await hass.async_add_executor_job(
                 auth.getControlToken,
                 config_entry.data["mail"],
@@ -170,17 +171,22 @@ async def refresh_token_thread(
 ):
     """Refresh the token periodically."""
     while True:
-        timeToSleep = auth.get_token_validity_time() * 0.8
-        if timeToSleep > 3600:
-            logging.debug("Sleeping for %s seconds", timeToSleep)
-            await asyncio.sleep(timeToSleep)
-        logging.warning("Refreshing token for %s", config_entry.data["mail"])
+        if auth.get_token_validity_time() > 7200:
+            logging.debug("Sleeping for %s seconds before refreshing", 3600)
+            await asyncio.sleep(3600)
+        logging.info("Refreshing token for %s", config_entry.data["mail"])
         if not await refresh_token(hass, config_entry, auth):
-            logging.warning(
+            logging.error(
                 "Failed to refresh token for %s. Trying again in 120 seconds",
                 config_entry.data["mail"],
             )
             await asyncio.sleep(120)
+        else:
+            logging.info(
+                "Token refreshed successfully for %s. New token valid for %s seconds",
+                config_entry.data["mail"],
+                auth.get_token_validity_time(),
+            )
 
 
 async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: BoseAuth):
@@ -201,12 +207,15 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                 new_token["refresh_token"],
                 config_entry.data["bose_person_id"],
             )
+            logging.info(
+                "Token is valid for %s seconds", auth.get_token_validity_time()
+            )
+            return True
     except Exception as e:  # noqa: BLE001
         logging.error(
             "Failed to refresh token for %s: %s", config_entry.data["mail"], str(e)
         )
-        return False
-    return True
+    return False
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
@@ -304,18 +313,7 @@ async def connect_to_bose(
     """Connect to the Bose speaker."""
     data = config_entry.data
 
-    def handle_exception(exception: Exception) -> None:
-        """Handle exceptions."""
-        if isinstance(exception, BoseRequestException):
-            if exception.http_status == 401 and exception.error_status == "0":
-                logging.error("Token is invalid or expired. Renewing token!")
-                refresh_token(hass, config_entry, auth)
-
-    speaker = BoseSpeaker(
-        host=data["ip"],
-        bose_auth=auth,
-        on_exception=handle_exception,
-    )
+    speaker = BoseSpeaker(host=data["ip"], bose_auth=auth)
 
     try:
         await speaker.connect()
