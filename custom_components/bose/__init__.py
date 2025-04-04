@@ -171,9 +171,9 @@ async def refresh_token_thread(
 ):
     """Refresh the token periodically."""
     while True:
-        if auth.get_token_validity_time() > 7200:
-            logging.debug("Sleeping for %s seconds before refreshing", 3600)
-            await asyncio.sleep(3600)
+        if auth.get_token_validity_time() > 21600:                                # when token is valid for more than 6 hours
+            logging.debug("Sleeping for %s seconds before refreshing", 14400)     # wait for 4 hours before refreshing token
+            await asyncio.sleep(14400)
         logging.info("Refreshing token for %s", config_entry.data["mail"])
         if not await refresh_token(hass, config_entry, auth):
             logging.error(
