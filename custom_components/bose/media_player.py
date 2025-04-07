@@ -205,6 +205,12 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._volume_level = volume
         self.async_write_ha_state()
 
+    async def async_mute_volume(self, mute: bool) -> None:
+        """Send mute command."""
+        await self.speaker.set_audio_volume_muted(mute)
+        self._muted = mute
+        self.async_write_ha_state()
+
     async def async_media_play(self) -> None:
         """Play the current media."""
         await self.speaker.play()
@@ -376,6 +382,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
             )
             | MediaPlayerEntityFeature.VOLUME_SET
             | MediaPlayerEntityFeature.VOLUME_STEP
+            | MediaPlayerEntityFeature.VOLUME_MUTE
             | (
                 MediaPlayerEntityFeature.STOP
                 if self._now_playing_result.get("state", {}).get("canStop", False)
