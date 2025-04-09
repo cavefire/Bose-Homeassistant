@@ -171,8 +171,12 @@ async def refresh_token_thread(
 ):
     """Refresh the token periodically."""
     while True:
-        if auth.get_token_validity_time() > 21600:                                # when token is valid for more than 6 hours
-            logging.debug("Sleeping for %s seconds before refreshing", 14400)     # wait for 4 hours before refreshing token
+        if (
+            auth.get_token_validity_time() > 21600
+        ):  # when token is valid for more than 6 hours
+            logging.debug(
+                "Sleeping for %s seconds before refreshing", 14400
+            )  # wait for 4 hours before refreshing token
             await asyncio.sleep(14400)
         logging.info("Refreshing token for %s", config_entry.data["mail"])
         if not await refresh_token(hass, config_entry, auth):
@@ -201,11 +205,6 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                     "access_token": new_token["access_token"],
                     "refresh_token": new_token["refresh_token"],
                 },
-            )
-            auth.set_access_token(
-                new_token["access_token"],
-                new_token["refresh_token"],
-                config_entry.data["bose_person_id"],
             )
             logging.info(
                 "Token is valid for %s seconds", auth.get_token_validity_time()
