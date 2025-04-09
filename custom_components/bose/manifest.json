@@ -11,9 +11,9 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/cavefire/Bose-Homeassistant/issues",
   "requirements": [
-    "pybose==2025.4.3"
+    "pybose==2025.4.4"
   ],
   "ssdp": [],
-  "version": "0.4.7",
+  "version": "0.4.10",
   "zeroconf": []
 }
