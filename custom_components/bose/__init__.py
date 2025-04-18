@@ -219,17 +219,33 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Unsubscribe from the speaker
-    speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
-    if speaker:
-        await speaker.disconnect()
+    try:
+        # Unsubscribe from the speaker
+        speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id].get("speaker")
+        if speaker:
+            await speaker.disconnect()
 
-    # Remove the speaker object from hass.data
-    hass.data[DOMAIN].pop(config_entry.entry_id, None)
+        # Remove the speaker object and other data from hass.data
+        hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
-    # Unload the config entry
-    await hass.config_entries.async_unload(config_entry.entry_id)
-    return True
+        # Unload platforms associated with this config entry
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            config_entry,
+            [
+                "media_player",
+                "select",
+                "number",
+                "sensor",
+                "binary_sensor",
+                "switch",
+                "button",
+            ],
+        )
+
+        return unload_ok
+    except Exception as e:
+        logging.exception("Error during async_unload_entry", exc_info=e)
+        return False
 
 
 def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
