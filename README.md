@@ -19,7 +19,7 @@ The speakers are controlled 100% locally. However, a cloud account is needed and
 ### Manual Installation
 
 1. Clone or download this repository.
-2. Copy the `custom_components/bose` directory to your Home Assistant `config` directory.
+2. Copy the `custom_components` directory of this repository to your Home Assistant `config` directory.
 3. Restart Home Assistant.
 
 ## Setup
