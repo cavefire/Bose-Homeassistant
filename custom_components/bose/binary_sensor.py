@@ -50,4 +50,4 @@ class BoseBatteryChargingSensor(BoseBatteryBase, BinarySensorEntity):
 
     def update_from_battery_status(self, battery_status: Battery):
         """Update sensor state."""
-        self.is_on = battery_status.chargerConnected
+        self.is_on = battery_status.get("chargerConnected", False) == "CONNECTED"

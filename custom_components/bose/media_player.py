@@ -1,7 +1,5 @@
 """Support for Bose media player."""
 
-import logging
-
 from pybose.BoseResponse import AudioVolume, ContentNowPlaying, SystemInfo
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -17,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 
 async def async_setup_entry(
@@ -139,7 +137,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
                 case None:
                     self._state = MediaPlayerState.OFF
                 case _:
-                    logging.warning(
+                    _LOGGER.warning(
                         "State not implemented: %s", data.get("state", {}).get("status")
                     )
                     self._state = MediaPlayerState.ON
@@ -258,11 +256,11 @@ class BoseMediaPlayer(MediaPlayerEntity):
 
         if self._active_group_id is not None:
             if self._group_members[0] != self.entity_id:
-                logging.warning(
+                _LOGGER.warning(
                     "Speakers can only join the master of the group, which is %s",
                     self._group_members[0],
                 )
-                logging.warning("Running action on master speaker.")
+                _LOGGER.warning("Running action on master speaker.")
                 master: BoseSpeaker = self.hass.data[DOMAIN][
                     registry.async_get(self._group_members[0]).config_entry_id
                 ]["speaker"]

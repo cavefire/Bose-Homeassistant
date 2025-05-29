@@ -1,7 +1,5 @@
 """Support for Bose battery status sensor."""
 
-import logging
-
 from pybose import BoseSpeaker
 from pybose.BoseResponse import Battery
 
@@ -13,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import refresh_token
 from .bose.battery import BoseBatteryBase
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 
 async def async_setup_entry(
@@ -24,7 +22,7 @@ async def async_setup_entry(
     """Set up Bose battery sensor if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
 
-    if speaker.has_capability("/system/battery"):
+    if speaker.has_capability("/system/battery") or True:
         async_add_entities(
             [
                 BoseBatteryLevelSensor(speaker, config_entry, hass),
@@ -59,7 +57,7 @@ class BoseBatteryLevelSensor(BoseBatteryBase, SensorEntity):
 
     def update_from_battery_status(self, battery_status: Battery):
         """Update sensor state."""
-        self.native_value = battery_status.percent
+        self.native_value = battery_status.get("percent", 0)
 
 
 class BoseBatteryTimeTillFull(BoseBatteryBase, SensorEntity):
@@ -73,17 +71,19 @@ class BoseBatteryTimeTillFull(BoseBatteryBase, SensorEntity):
     ) -> None:
         """Initialize charging state sensor."""
         super().__init__(speaker, config_entry, hass)
-        self._attr_name = f"{config_entry.data['name']} Time Till Full"
+        self._attr_name = f"{config_entry.data['name']} Time till Full"
         self._attr_unique_id = f"{config_entry.data['guid']}_time_till_full"
         self._attr_device_class = SensorDeviceClass.DURATION
         self.native_unit_of_measurement = "min"
 
     def update_from_battery_status(self, battery_status: Battery):
         """Update sensor state."""
-        if battery_status.minutesToFull == 65535:
+        if battery_status.get("minutesToFull") == 65535:
+            if battery_status.get("percent", 0) == 100:
+                self.native_value = 0
             self.native_value = None
         else:
-            self.native_value = battery_status.minutesToFull
+            self.native_value = battery_status.get("minutesToFull", 0)
 
 
 class BoseBatteryTimeTillEmpty(BoseBatteryBase, SensorEntity):
@@ -104,10 +104,12 @@ class BoseBatteryTimeTillEmpty(BoseBatteryBase, SensorEntity):
 
     def update_from_battery_status(self, battery_status: Battery):
         """Update sensor state."""
-        if battery_status.minutesToEmpty == 65535:
+        if battery_status.get("minutesToEmpty") == 65535:
+            if battery_status.get("percent", 0) == 0:
+                self.native_value = 0
             self.native_value = None
         else:
-            self.native_value = battery_status.minutesToEmpty
+            self.native_value = battery_status.get("minutesToEmpty")
 
 
 class BoseAuthValidTimeSensor(SensorEntity):
@@ -134,8 +136,8 @@ class BoseAuthValidTimeSensor(SensorEntity):
         seconds_until_expire = self.speaker._bose_auth.get_token_validity_time()  # noqa: SLF001
 
         if seconds_until_expire < 300:
-            logging.warning(
-                "Refreshing token from sensor. This should not happen... Please open an issue."
+            _LOGGER.warning(
+                "Refreshing token from sensor. This should not happen... Please open an issue"
             )
             self.hass.async_create_task(
                 refresh_token(self.hass, self._config_entry, self.speaker._bose_auth)  # noqa: SLF001
