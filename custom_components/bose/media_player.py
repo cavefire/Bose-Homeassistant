@@ -199,6 +199,12 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._state = MediaPlayerState.OFF
         self.async_write_ha_state()
 
+    async def async_media_stop(self) -> None:
+        """Stop the playback."""
+        await self.speaker.pause()
+        self._state = MediaPlayerState.IDLE
+        self.async_write_ha_state()
+
     async def async_set_volume_level(self, volume: float) -> None:
         """Set volume level (0.0 to 1.0)."""
         await self.speaker.set_audio_volume(int(volume * 100))
