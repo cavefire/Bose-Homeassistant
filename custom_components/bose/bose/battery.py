@@ -55,8 +55,7 @@ class BoseBatteryBase(Entity):
         if not self.hass:
             return
         try:
-            # battery_status = await self.speaker.get_battery_status()
-            battery_status = dummy_battery_status()
+            battery_status = await self.speaker.get_battery_status()
             self.update_from_battery_status(battery_status)
             self.async_write_ha_state()
         except Exception:  # noqa: BLE001
