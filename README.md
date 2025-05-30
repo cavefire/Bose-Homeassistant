@@ -11,7 +11,7 @@ The speakers are controlled 100% locally. However, a cloud account is needed and
 
 ### Using HACS
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?category=integration&repository=Bose-Homeassistant&owner=cavefire)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](http://mine.li/mTnn1)](http://mine.li/uuOUj)
 
 1. Click the link above to open the integration in HACS.
 2. Install the integration.
