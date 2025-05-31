@@ -89,7 +89,7 @@ To remove a speaker from the group, use the service `media_player.unjoin`. If th
 
 ### Supported Devices
 
-All devices controllable using the BOSE App should work. Here is the list of devices, that have been tested:
+All devices commected via WiFi and controllable using the BOSE App should work. Here is the list of devices, that have been tested:
 
 **Soundbars:**
 - [x] Soundbar 500
