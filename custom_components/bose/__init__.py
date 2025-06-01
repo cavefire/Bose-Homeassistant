@@ -311,6 +311,7 @@ async def registerAccessories(
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers={(DOMAIN, accessory.get("serialnum", "N/A"))},
+            serial_number=accessory.get("serialnum", "N/A"),
             manufacturer="Bose",
             name=accessory.get("type", "").replace("_", " "),
             model=accessory.get("type", "").replace("_", " "),
