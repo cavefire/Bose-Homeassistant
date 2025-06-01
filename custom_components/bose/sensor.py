@@ -22,7 +22,7 @@ async def async_setup_entry(
     """Set up Bose battery sensor if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
 
-    if speaker.has_capability("/system/battery") or True:
+    if speaker.has_capability("/system/battery"):
         async_add_entities(
             [
                 BoseBatteryLevelSensor(speaker, config_entry, hass),
