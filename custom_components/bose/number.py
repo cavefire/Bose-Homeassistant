@@ -1,6 +1,5 @@
 """Support for Bose adjustable sound settings (sliders)."""
 
-import logging
 from typing import Any
 
 from pybose.BoseResponse import Audio
@@ -21,7 +20,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 # Define adjustable sound parameters
 ADJUSTABLE_PARAMETERS = [
@@ -154,8 +153,14 @@ class BoseAudioSlider(NumberEntity):
         try:
             await self.speaker.set_audio_setting(self._option, value)
             self.async_write_ha_state()
-        except Exception as e:  # noqa: BLE001
-            logging.error(f"Failed to set {self._attr_name} to {value}: {e}")  # noqa: G004
+        except Exception as e:
+            _LOGGER.error(
+                "Failed to set audio setting %s to %s: %s",
+                self._option,
+                value,
+                e,
+            )
+            raise
 
     @property
     def value(self) -> float:

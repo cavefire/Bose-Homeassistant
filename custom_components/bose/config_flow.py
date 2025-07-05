@@ -1,7 +1,5 @@
 """Config flow for Bose integration."""
 
-import logging
-
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseDiscovery import BoseDiscovery
 from pybose.BoseSpeaker import BoseSpeaker
@@ -11,7 +9,7 @@ from homeassistant import config_entries
 import homeassistant.components.zeroconf
 from homeassistant.config_entries import ConfigFlowResult
 
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 
 async def Discover_Bose_Devices(hass: homeassistant.core.HomeAssistant):
@@ -65,8 +63,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ip = user_input["device"]
                 try:
                     return await self._get_device_info(self.mail, self.password, ip)
-                except Exception as e:
-                    logging.exception("Unexpected error", exc_info=e)
+                except Exception as e:  # noqa: BLE001
+                    _LOGGER.exception("Unexpected error", exc_info=e)
                     errors["base"] = "auth_failed"
             else:
                 errors["base"] = "auth_failed"
@@ -75,8 +73,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not self.discovered_ips:
             try:
                 self.discovered_ips = await self._discover_devices()
-            except Exception as e:
-                logging.exception("Discovery failed", exc_info=e)
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.exception("Discovery failed", exc_info=e)
                 self.discovered_ips = []
 
         # Prepare dropdown options
@@ -105,8 +103,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 return await self._get_device_info(self.mail, self.password, ip)
-            except Exception as e:
-                logging.exception("Unexpected error", exc_info=e)
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.exception("Unexpected error", exc_info=e)
                 errors["base"] = "auth_failed"
 
         # Show the form for manual IP input
@@ -137,8 +135,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             self._auth = BoseAuth()
             return self._auth.getControlToken(email, password, forceNew=True)
-        except Exception as e:
-            logging.exception("Failed to get control token", exc_info=e)
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.exception("Failed to get control token", exc_info=e)
             return None
 
     async def _get_device_info(self, mail, password, ip):
@@ -149,8 +147,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             system_info = await speaker.get_system_info()
             if not system_info:
                 return self.async_abort(reason="info_failed")
-        except Exception as e:
-            logging.exception("Failed to get system info", exc_info=e)
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.exception("Failed to get system info", exc_info=e)
             return self.async_abort(reason="connect_failed")
 
         guid = speaker.get_device_id()

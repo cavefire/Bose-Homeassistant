@@ -1,7 +1,5 @@
 """Support for Bose power button."""
 
-import logging
-
 from pybose.BoseResponse import Preset
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -14,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import refresh_token
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 
 async def async_setup_entry(
@@ -104,7 +102,7 @@ class BosePresetbutton(ButtonEntity):
 
     async def async_press(self, **kwargs) -> None:
         """Press the button."""
-        logging.info("Pressing button %s", self._name)
+        _LOGGER.info("Pressing button %s", self._name)
         await self._speaker.request_playback_preset(
             self._preset,
             self.config_entry.data["bose_person_id"],
@@ -112,7 +110,7 @@ class BosePresetbutton(ButtonEntity):
 
     async def async_update(self) -> None:
         """Update the button state."""
-        logging.info("Updating button %s", self._name)
+        _LOGGER.info("Updating button %s", self._name)
 
     @property
     def is_on(self) -> bool:
@@ -154,7 +152,7 @@ class BoseRefreshTokenButton(ButtonEntity):
 
     async def async_press(self, **kwargs) -> None:
         """Press the button."""
-        logging.info("Refreshing auth token")
+        _LOGGER.info("Refreshing auth token")
 
         self.hass.async_create_task(
             refresh_token(self.hass, self._config_entry, self._speaker._bose_auth)  # noqa: SLF001

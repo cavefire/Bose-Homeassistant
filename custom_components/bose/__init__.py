@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import logging
 
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseResponse import Accessories, NetworkStateEnum
@@ -13,7 +12,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -34,21 +33,21 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         and config_entry.data.get("refresh_token") is not None
     ):
         # Using existing access token
-        logging.debug("Using existing access token for %s", config_entry.data["mail"])
+        _LOGGER.debug("Using existing access token for %s", config_entry.data["mail"])
         auth.set_access_token(
             config_entry.data["access_token"],
             config_entry.data["refresh_token"],
             config_entry.data["bose_person_id"],
         )
     else:
-        logging.debug("No access token found, logging in with credentials")
+        _LOGGER.debug("No access token found, logging in with credentials")
 
         is_token_valid = await hass.async_add_executor_job(
             auth.is_token_valid, config_entry.data.get("access_token")
         )
 
         if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
-            logging.warning("Token is invalid or expired. Logging in with credentials")
+            _LOGGER.warning("Token is invalid or expired. Logging in with credentials")
             login_result = await hass.async_add_executor_job(
                 auth.getControlToken,
                 config_entry.data["mail"],
@@ -80,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         # find the devce with the same GUID
         for device in discovered:
             if device["guid"] == config_entry.data["guid"]:
-                logging.error(
+                _LOGGER.error(
                     "Found device with same GUID, updating IP to: %s", device["ip"]
                 )
                 hass.config_entries.async_update_entry(
@@ -91,8 +90,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                 break
 
         if not found:
-            logging.error(
-                "Failed to connect to Bose speaker. No new ip was found, so assuming the device is offline."
+            _LOGGER.error(
+                "Failed to connect to Bose speaker. No new ip was found, so assuming the device is offline"
             )
             return False
 
@@ -174,19 +173,19 @@ async def refresh_token_thread(
         if (
             auth.get_token_validity_time() > 21600
         ):  # when token is valid for more than 6 hours
-            logging.debug(
+            _LOGGER.debug(
                 "Sleeping for %s seconds before refreshing", 14400
             )  # wait for 4 hours before refreshing token
             await asyncio.sleep(14400)
-        logging.info("Refreshing token for %s", config_entry.data["mail"])
+        _LOGGER.info("Refreshing token for %s", config_entry.data["mail"])
         if not await refresh_token(hass, config_entry, auth):
-            logging.error(
+            _LOGGER.error(
                 "Failed to refresh token for %s. Trying again in 120 seconds",
                 config_entry.data["mail"],
             )
             await asyncio.sleep(120)
         else:
-            logging.info(
+            _LOGGER.info(
                 "Token refreshed successfully for %s. New token valid for %s seconds",
                 config_entry.data["mail"],
                 auth.get_token_validity_time(),
@@ -206,15 +205,16 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                     "refresh_token": new_token["refresh_token"],
                 },
             )
-            logging.info(
+            _LOGGER.info(
                 "Token is valid for %s seconds", auth.get_token_validity_time()
             )
             return True
     except Exception as e:  # noqa: BLE001
-        logging.error(
+        _LOGGER.error(
             "Failed to refresh token for %s: %s", config_entry.data["mail"], str(e)
         )
     return False
+
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
@@ -244,6 +244,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         unload_ok = unload_ok and ok
 
     return unload_ok
+
 
 def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
     """Set up the Bose component."""
@@ -331,7 +332,7 @@ async def connect_to_bose(
     try:
         await speaker.connect()
     except Exception as e:  # noqa: BLE001
-        logging.error(f"Failed to connect to Bose speaker (IP: {data['ip']}): {e}")  # noqa: G004
+        _LOGGER.error(f"Failed to connect to Bose speaker (IP: {data['ip']}): {e}")
         return None
 
     return speaker

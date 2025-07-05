@@ -260,7 +260,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
                     "Speakers can only join the master of the group, which is %s",
                     self._group_members[0],
                 )
-                _LOGGER.warning("Running action on master speaker.")
+                _LOGGER.warning("Running action on master speaker")
                 master: BoseSpeaker = self.hass.data[DOMAIN][
                     registry.async_get(self._group_members[0]).config_entry_id
                 ]["speaker"]
@@ -334,7 +334,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._media_position
 
     @property
-    def media_position_updated_at(self) -> dt_util.dt:
+    def media_position_updated_at(self) -> dt_util.dt.datetime | None:
         """Return the last time the media position was updated."""
         return self._last_update
 

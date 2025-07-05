@@ -1,6 +1,5 @@
 """Support for Bose power switch."""
 
-import logging
 from typing import Any
 
 from pybose.BoseResponse import Accessories, SystemInfo, SystemTimeout
@@ -13,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 
 
 async def async_setup_entry(
@@ -32,7 +31,7 @@ async def async_setup_entry(
     if speaker.has_capability("/system/power/timeouts"):
         entities = [BoseStandbySettingSwitch(speaker, system_info, config_entry, hass)]
     else:
-        logging.debug("Speaker does not support system timeouts")
+        _LOGGER.debug("Speaker does not support system timeouts")
 
     if accessories:
         if accessories.get("controllable", {}).get("subs", False):
