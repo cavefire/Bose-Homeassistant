@@ -113,7 +113,7 @@ class BoseAudioSlider(NumberEntity):
         self._attr_name = parameter.get("display")
         self._path = parameter.get("path")
         self._option = parameter.get("option")
-        self._current_value = None
+        self._attr_native_value = None
         self._attr_min_value = parameter.get("min")
         self._attr_max_value = parameter.get("max")
         self._attr_step = parameter.get("step")
@@ -138,7 +138,7 @@ class BoseAudioSlider(NumberEntity):
             self._parse_audio(Audio(data.get("body")))
 
     def _parse_audio(self, data: Audio):
-        self._current_value = data.get("value", 0)
+        self._attr_native_value = data.get("value", 0)
         if self.hass:
             self.async_write_ha_state()
 
@@ -165,12 +165,7 @@ class BoseAudioSlider(NumberEntity):
     @property
     def value(self) -> float:
         """Return the current value of the setting."""
-        return self._current_value
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return self._attr_unique_id
+        return self._attr_native_value
 
     @property
     def capability_attributes(self) -> dict[str, Any]:
@@ -179,7 +174,7 @@ class BoseAudioSlider(NumberEntity):
             ATTR_MIN: self._attr_min_value,
             ATTR_MAX: self._attr_max_value,
             ATTR_STEP: self._attr_step,
-            ATTR_VALUE: self._current_value,
+            ATTR_VALUE: self._attr_native_value,
             ATTR_MODE: NumberMode.SLIDER,
         }
 
