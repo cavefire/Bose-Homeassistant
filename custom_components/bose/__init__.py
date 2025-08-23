@@ -8,7 +8,12 @@ from pybose.BoseResponse import Accessories, NetworkStateEnum
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
@@ -42,8 +47,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     else:
         _LOGGER.debug("No access token found, logging in with credentials")
 
+        access_token = config_entry.data.get("access_token") or ""
         is_token_valid = await hass.async_add_executor_job(
-            auth.is_token_valid, config_entry.data.get("access_token")
+            auth.is_token_valid, access_token
         )
 
         if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
@@ -95,8 +101,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             )
             return False
 
-        config_entry = hass.config_entries.async_get_entry(config_entry.entry_id)
+        new_entry = hass.config_entries.async_get_entry(config_entry.entry_id)
+        if new_entry is None:
+            _LOGGER.error("Config entry not found after updating IP, aborting setup")
+            return False
+        config_entry = new_entry
         speaker = await connect_to_bose(hass, config_entry, auth)
+
+    if speaker is None:
+        _LOGGER.error("Speaker object is None, cannot retrieve system info")
+        return False
 
     system_info = await speaker.get_system_info()
     capabilities = await speaker.get_capabilities()
@@ -249,7 +263,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
     """Set up the Bose component."""
 
-    async def handle_custom_request(call: ServiceCall) -> None:
+    async def handle_custom_request(call: ServiceCall) -> ServiceResponse:
         # Extract device_id from target
         ha_device_ids = call.data.get("device_id", [])  # Always returns a list
         if not ha_device_ids:
@@ -273,9 +287,12 @@ def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
             )
 
         device_registry = dr.async_get(hass)
-        speaker = hass.data[DOMAIN][
-            device_registry.async_get(ha_device_id).primary_config_entry
-        ]["speaker"]
+        device_entry = device_registry.async_get(ha_device_id)
+        if device_entry is None or device_entry.primary_config_entry is None:
+            raise ValueError(
+                f"No valid config entry found for Home Assistant device_id: {ha_device_id}"
+            )
+        speaker = hass.data[DOMAIN][device_entry.primary_config_entry]["speaker"]
 
         if not speaker:
             raise ValueError(
@@ -308,7 +325,23 @@ async def registerAccessories(
 ):
     """Register accessories in Home Assistant."""
     device_registry = dr.async_get(hass)
-    for accessory in (accessories.get("subs", [])) + accessories.get("rears", {}):
+
+    subs = accessories.get("subs") or []
+    rears_raw = accessories.get("rears") or []
+
+    rears: list = []
+    if isinstance(rears_raw, dict):
+        for v in rears_raw.values():
+            if isinstance(v, list):
+                rears.extend(v)
+            else:
+                rears.append(v)
+    elif isinstance(rears_raw, list):
+        rears = list(rears_raw)
+    else:
+        rears = [rears_raw]
+
+    for accessory in list(subs) + rears:
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers={(DOMAIN, accessory.get("serialnum", "N/A"))},

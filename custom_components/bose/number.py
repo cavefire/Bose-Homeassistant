@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from propcache.api import cached_property
 from pybose.BoseResponse import Audio
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -124,9 +125,10 @@ class BoseAudioSlider(NumberEntity):
 
         self._attr_entity_category = EntityCategory.CONFIG
 
-        self._attr_unique_id = (
-            f"{config_entry.data['guid']}_{self._attr_name.lower()}_slider"
+        name_part = (
+            self._attr_name.lower() if self._attr_name is not None else self._option
         )
+        self._attr_unique_id = f"{config_entry.data['guid']}_{name_part}_slider"
 
         self.speaker.attach_receiver(self._parse_message)
 
@@ -148,10 +150,10 @@ class BoseAudioSlider(NumberEntity):
         if self.hass:
             self.async_write_ha_state()
 
-    async def async_set_value(self, value: float) -> None:
+    async def async_set_native_value(self, value: float) -> None:
         """Set the new value for the setting."""
         try:
-            await self.speaker.set_audio_setting(self._option, value)
+            await self.speaker.set_audio_setting(self._option, int(value))
             self.async_write_ha_state()
         except Exception as e:
             _LOGGER.error(
@@ -161,11 +163,6 @@ class BoseAudioSlider(NumberEntity):
                 e,
             )
             raise
-
-    @property
-    def value(self) -> float:
-        """Return the current value of the setting."""
-        return self._attr_native_value
 
     @property
     def capability_attributes(self) -> dict[str, Any]:
@@ -178,7 +175,7 @@ class BoseAudioSlider(NumberEntity):
             ATTR_MODE: NumberMode.SLIDER,
         }
 
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo:
         """Return device information about this entity."""
         return {

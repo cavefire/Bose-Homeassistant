@@ -53,9 +53,6 @@ async def async_setup_entry(
 
     entities = []
 
-    if speaker.has_capability("/system/sources"):
-        entities.append(BoseSourceSelect(speaker, system_info, config_entry, hass))
-
     if speaker.has_capability("/audio/mode"):
         entities.append(BoseAudioSelect(speaker, system_info, config_entry, hass))
 
@@ -152,7 +149,10 @@ class BoseSourceSelect(SelectEntity):
         sources = await self.speaker.get_sources()
         for source in sources.get("sources", []):
             if (
-                (source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED") or source.get("accountId", "TV"))
+                (
+                    source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED")
+                    or source.get("accountId", "TV")
+                )
                 and source.get("sourceAccountName", None)
                 and source.get("sourceName", None)
             ):

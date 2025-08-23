@@ -57,9 +57,17 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._media_duration = None
         self._media_position = None
         self._last_update = None
-        self._now_playing_result = None
+        self._now_playing_result = None  # type: ignore
         self._group_members = []
         self._active_group_id = None
+        # Source handling (moved from separate select entity)
+        # Mapping of human readable source name -> source payload
+        self._available_sources: dict[str, dict] = {
+            "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
+            "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
+            "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
+        }
+        self._source_list: list[str] = []
 
         speaker.attach_receiver(self.parse_message)
 
@@ -171,6 +179,24 @@ class BoseMediaPlayer(MediaPlayerEntity):
             data.get("track", {}).get("contentItem", {}).get("containerArt")
         )
 
+        # Update selected source if it matches one of our available sources
+        for name, source_data in self._available_sources.items():
+            if data.get("container", {}).get("contentItem", {}).get(
+                "source"
+            ) == source_data.get("source"):
+                if source_data.get("source") in ("SPOTIFY", "AMAZON", "DEEZER"):
+                    if data.get("container", {}).get("contentItem", {}).get(
+                        "sourceAccount"
+                    ) != source_data.get("accountId"):
+                        continue
+                elif source_data.get("sourceAccount") != data.get("container", {}).get(
+                    "contentItem", {}
+                ).get("sourceAccount"):
+                    continue
+
+                self._source = name
+                break
+
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
         data = await self.speaker.get_now_playing()
@@ -179,9 +205,56 @@ class BoseMediaPlayer(MediaPlayerEntity):
         data = await self.speaker.get_audio_volume()
         self._parse_audio_volume(data)
 
+        # Refresh available sources (build human readable list)
+        sources = await self.speaker.get_sources()
+        for source in sources.get("sources", []):
+            if (
+                (
+                    source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED")
+                    or source.get("accountId", "TV")
+                )
+                and source.get("sourceAccountName", None)
+                and source.get("sourceName", None)
+            ):
+                if source.get("sourceName", None) in (
+                    "AMAZON",
+                    "SPOTIFY",
+                    "DEEZER",
+                ) and source.get("sourceAccountName", None) not in (
+                    "AlexaUserName",
+                    "SpotifyConnectUserName",
+                    "DeezerUserName",
+                ):
+                    display = f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
+                    self._available_sources[display] = {
+                        "source": source.get("sourceName", None),
+                        "sourceAccount": source.get("sourceAccountName", None),
+                        "accountId": source.get("accountId", None),
+                    }
+
+                for key, value in self._available_sources.items():
+                    if (
+                        source.get("sourceName", None) == value["source"]
+                        and source.get("sourceAccountName", None)
+                        == value["sourceAccount"]
+                    ):
+                        if key not in self._source_list:
+                            self._source_list.append(key)
+
         active_groups = await self.speaker.get_active_groups()
         self._parse_grouping({"activeGroups": active_groups})
         self.async_write_ha_state()
+
+    async def async_select_source(self, source: str) -> None:
+        """Select an input source on the speaker."""
+        if source not in self._available_sources:
+            return
+
+        source_data = self._available_sources[source]
+        result = await self.speaker.set_source(
+            source_data.get("source"), source_data.get("sourceAccount")
+        )
+        self._parse_now_playing(ContentNowPlaying(result))
 
     async def async_turn_on(self) -> None:
         """Turn on the speaker."""
@@ -309,27 +382,27 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._muted
 
     @property
-    def media_title(self) -> str:
+    def media_title(self) -> str | None:
         """Return the title of current playing media."""
         return self._media_title
 
     @property
-    def media_artist(self) -> str:
+    def media_artist(self) -> str | None:
         """Return the artist of current playing media (Music track only)."""
         return self._media_artist
 
     @property
-    def media_album_name(self) -> str:
+    def media_album_name(self) -> str | None:
         """Return the album of current playing media (Music track only)."""
         return self._media_album_name
 
     @property
-    def media_duration(self) -> int:
+    def media_duration(self) -> int | None:
         """Return the duration of current playing media in seconds."""
         return self._media_duration
 
     @property
-    def media_position(self) -> int:
+    def media_position(self) -> int | None:
         """Return the position of current playing media in seconds."""
         return self._media_position
 
@@ -339,14 +412,19 @@ class BoseMediaPlayer(MediaPlayerEntity):
         return self._last_update
 
     @property
-    def media_image_url(self) -> str:
+    def media_image_url(self) -> str | None:
         """Return the URL of the album art."""
         return self._album_art
 
     @property
-    def source(self) -> str:
+    def source(self) -> str | None:
         """Return the current input source."""
         return self._source
+
+    @property
+    def source_list(self) -> list[str] | None:
+        """Return the list of available input sources."""
+        return self._source_list
 
     @property
     def unique_id(self) -> str:
@@ -393,18 +471,19 @@ class BoseMediaPlayer(MediaPlayerEntity):
                 else 0
             )
             | MediaPlayerEntityFeature.GROUPING
+            | MediaPlayerEntityFeature.SELECT_SOURCE
         )
 
     @property
     def group_members(self) -> list[str]:
         """Return the list of members of this player's group."""
-        return self._group_members
+        return self._group_members  # pyright: ignore[reportReturnType]
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information for Home Assistant integration."""
         return {
-            "identifiers": {(DOMAIN, self._device_id)},
+            "identifiers": {(DOMAIN, self._device_id)},  # pyright: ignore[reportReturnType]
             "manufacturer": "Bose",
             "name": self._name,
         }

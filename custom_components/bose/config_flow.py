@@ -8,11 +8,12 @@ import voluptuous as vol
 from homeassistant import config_entries
 import homeassistant.components.zeroconf
 from homeassistant.config_entries import ConfigFlowResult
+from homeassistant.core import HomeAssistant
 
 from .const import _LOGGER, DOMAIN
 
 
-async def Discover_Bose_Devices(hass: homeassistant.core.HomeAssistant):
+async def Discover_Bose_Devices(hass: HomeAssistant):
     """Discover devices using BoseDiscovery in an executor."""
     zeroconf = await homeassistant.components.zeroconf.async_get_instance(hass)
 
@@ -142,7 +143,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
         try:
-            speaker = BoseSpeaker(bose_auth=self._auth, host=ip)
+            speaker = BoseSpeaker(bose_auth=self._auth, host=ip)  # pyright: ignore[reportArgumentType]
             await speaker.connect()
             system_info = await speaker.get_system_info()
             if not system_info:
@@ -152,6 +153,17 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="connect_failed")
 
         guid = speaker.get_device_id()
+
+        if self._auth is None:
+            return self.async_abort(reason="auth_failed")
+
+        if (
+            self._auth.getCachedToken() is None
+            or self._auth.getCachedToken().get("bose_person_id") is None
+            or self._auth.getCachedToken().get("access_token") is None
+            or self._auth.getCachedToken().get("refresh_token") is None
+        ):
+            return self.async_abort(reason="auth_failed")
 
         return self.async_create_entry(
             title=f"{system_info['name']}",
