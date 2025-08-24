@@ -90,7 +90,7 @@ class BoseSourceSelect(SelectEntity):
         }
 
         self._attr_options = []
-        self._selected_source = None
+        self._attr_current_option = None
 
         self.speaker.attach_receiver(self._parse_message)
 
@@ -131,11 +131,11 @@ class BoseSourceSelect(SelectEntity):
                 ).get("sourceAccount"):
                     continue
 
-                self._selected_source = source_name
+                self._attr_current_option = source_name
                 self.async_write_ha_state()
                 return
 
-        self._selected_source = (
+        self._attr_current_option = (
             data.get("container", {})
             .get("contentItem", {})
             .get("source", "Unknown")
@@ -184,11 +184,6 @@ class BoseSourceSelect(SelectEntity):
 
         now_playing = await self.speaker.get_now_playing()
         self._parse_now_playing(now_playing)
-
-    @property
-    def current_option(self) -> str | None:
-        """Return the currently selected option."""
-        return self._selected_source
 
     @property
     def unique_id(self) -> str:

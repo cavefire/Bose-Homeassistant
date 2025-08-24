@@ -74,7 +74,7 @@ class BosePresetbutton(ButtonEntity):
     ) -> None:
         """Initialize the button."""
         self._speaker = speaker
-        self._name = f"Preset {presetNum}"
+        self._attr_name = f"Preset {presetNum}"
         self._preset = preset
         self.preset_num = presetNum
         self.config_entry = config_entry
@@ -87,7 +87,7 @@ class BosePresetbutton(ButtonEntity):
     def update_preset(self, preset: Preset) -> None:
         """Update the preset."""
         self._preset = preset
-        self._name = (
+        self._attr_name = (
             preset.get("actions")[0].get("payload").get("contentItem").get("name")
         )
         self.entity_picture = (
@@ -102,7 +102,7 @@ class BosePresetbutton(ButtonEntity):
 
     async def async_press(self, **kwargs) -> None:
         """Press the button."""
-        _LOGGER.info("Pressing button %s", self._name)
+        _LOGGER.info("Pressing button %s", self._attr_name)
         await self._speaker.request_playback_preset(
             self._preset,
             self.config_entry.data["bose_person_id"],
@@ -110,17 +110,7 @@ class BosePresetbutton(ButtonEntity):
 
     async def async_update(self) -> None:
         """Update the button state."""
-        _LOGGER.info("Updating button %s", self._name)
-
-    @property
-    def is_on(self) -> bool:
-        """Return if the feature is on."""
-        return self._is_on
-
-    @property
-    def name(self) -> str:
-        """Return the name of the button."""
-        return self._name
+        _LOGGER.info("Updating button %s", self._attr_name)
 
     @property
     def unique_id(self) -> str:
@@ -143,7 +133,7 @@ class BoseRefreshTokenButton(ButtonEntity):
     ) -> None:
         """Initialize the button."""
         self._speaker = speaker
-        self._name = "Refresh Auth (JWT) Token"
+        self._attr_name = "Refresh Auth (JWT) Token"
         self.entity_id = f"{DOMAIN}.refresh_token_button"
         self.icon = "mdi:refresh"
         self.entity_category = EntityCategory.DIAGNOSTIC
@@ -157,11 +147,6 @@ class BoseRefreshTokenButton(ButtonEntity):
         self.hass.async_create_task(
             refresh_token(self.hass, self._config_entry, self._speaker._bose_auth)  # noqa: SLF001
         )
-
-    @property
-    def name(self) -> str:
-        """Return the name of the button."""
-        return self._name
 
     @property
     def unique_id(self) -> str:

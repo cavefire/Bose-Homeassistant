@@ -64,9 +64,9 @@ class BoseAccessorySwitch(SwitchEntity):
     ) -> None:
         """Initialize the switch."""
         self.speaker = speaker
-        self._name = name
+        self._attr_name = name
         self._attribute = attribute
-        self._is_on = accessories.get("enabled", {}).get(attribute)
+        self._attr_is_on = accessories.get("enabled", {}).get(attribute)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
         self.icon = "mdi:speaker"
@@ -90,22 +90,12 @@ class BoseAccessorySwitch(SwitchEntity):
 
     def _parse_accessories(self, data: Accessories):
         """Parse the accessories data."""
-        self._is_on = data.get("enabled").get(self._attribute, False)
+        self._attr_is_on = data.get("enabled").get(self._attribute, False)
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Update the switch state."""
         self._parse_accessories(await self.speaker.get_accessories())
-
-    @property
-    def is_on(self) -> bool:
-        """Return if the feature is on."""
-        return self._is_on
-
-    @property
-    def name(self) -> str:
-        """Return the name of the switch."""
-        return self._name
 
     @property
     def unique_id(self) -> str:
@@ -162,8 +152,8 @@ class BoseStandbySettingSwitch(SwitchEntity):
     ) -> None:
         """Initialize the switch."""
         self.speaker = speaker
-        self._name = "Auto standby"
-        self._is_on = None
+        self._attr_name = "Auto standby"
+        self._attr_is_on = None
         self.speaker_info = speaker_info
         self.config_entry = config_entry
         self.icon = "mdi:power-standby"
@@ -177,7 +167,7 @@ class BoseStandbySettingSwitch(SwitchEntity):
         """Parse the message from the speaker."""
         if data.get("header", {}).get("resource") == "/system/power/timeouts":
             result: SystemTimeout = data.get("body")
-            self._is_on = result.get("noAudio", False)
+            self._attr_is_on = result.get("noAudio", False)
             self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -192,18 +182,10 @@ class BoseStandbySettingSwitch(SwitchEntity):
 
     async def async_update(self) -> None:
         """Update the switch state."""
-        self._is_on = (await self.speaker.get_system_timeout()).get("noAudio", False)
+        self._attr_is_on = (await self.speaker.get_system_timeout()).get(
+            "noAudio", False
+        )
         self.async_write_ha_state()
-
-    @property
-    def is_on(self) -> bool:
-        """Return if the feature is on."""
-        return self._is_on
-
-    @property
-    def name(self) -> str:
-        """Return the name of the switch."""
-        return self._name
 
     @property
     def unique_id(self) -> str:

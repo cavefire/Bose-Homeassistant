@@ -1,5 +1,6 @@
 """Support for Bose media player."""
 
+from functools import cached_property
 from pybose.BoseResponse import AudioVolume, ContentNowPlaying, SystemInfo
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -43,22 +44,22 @@ class BoseMediaPlayer(MediaPlayerEntity):
     ) -> None:
         """Initialize the Bose media player."""
         self.speaker = speaker
-        self._name = system_info["name"]
+        self._attr_name = system_info["name"]
         self._device_id = speaker.get_device_id()
         self._is_on = False
-        self._state = MediaPlayerState.OFF
-        self._volume_level = 0.5
-        self._muted = False
-        self._source = None
-        self._album_art = None
-        self._media_title = None
-        self._media_artist = None
-        self._media_album_name = None
-        self._media_duration = None
-        self._media_position = None
-        self._last_update = None
+        self._attr_state = MediaPlayerState.OFF
+        self._attr_volume_level = 0.5
+        self._attr_muted = False
+        self._attr_source = None
+        self._attr_media_image_url = None
+        self._attr_media_title = None
+        self._attr_media_artist = None
+        self._attr_media_album_name = None
+        self._attr_media_duration = None
+        self._attr_media_position = None
+        self._attr_media_position_updated_at = None
         self._now_playing_result = None  # type: ignore
-        self._group_members = []
+        self._attr_group_members = []
         self._active_group_id = None
         # Source handling (moved from separate select entity)
         # Mapping of human readable source name -> source payload
@@ -67,7 +68,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
         }
-        self._source_list: list[str] = []
+        self._attr_source_list: list[str] = []
 
         speaker.attach_receiver(self.parse_message)
 
@@ -82,7 +83,9 @@ class BoseMediaPlayer(MediaPlayerEntity):
             self._parse_audio_volume(AudioVolume(body))
         elif resource == "/system/power/control":
             self._is_on = body.get("power") == "ON"
-            self._state = MediaPlayerState.OFF if not self._is_on else self._state
+            self._attr_state = (
+                MediaPlayerState.OFF if not self._is_on else self._attr_state
+            )
         elif resource == "/content/nowPlaying":
             self._parse_now_playing(ContentNowPlaying(body))
         elif resource == "/grouping/activeGroups":
@@ -94,7 +97,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         active_groups = data.get("activeGroups", {})
 
         if len(active_groups) == 0:
-            self._group_members = []
+            self._attr_group_members = []
             self._active_group_id = None
             return
 
@@ -105,7 +108,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         ]
 
         if len(guids) == 0:
-            self._group_members = []
+            self._attr_group_members = []
             self._active_group_id = None
             return
 
@@ -124,42 +127,42 @@ class BoseMediaPlayer(MediaPlayerEntity):
             for guid in guids
         ]
 
-        self._group_members = entity_ids
+        self._attr_group_members = entity_ids
         self._active_group_id = active_group.get("activeGroupId")
 
     def _parse_audio_volume(self, data: AudioVolume):
-        self._volume_level = data.get("value", 0) / 100
-        self._muted = data.get("muted")
+        self._attr_volume_level = data.get("value", 0) / 100
+        self._attr_muted = data.get("muted")
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
             match data.get("state", {}).get("status"):
                 case "PLAY":
-                    self._state = MediaPlayerState.PLAYING
+                    self._attr_state = MediaPlayerState.PLAYING
                 case "PAUSED":
-                    self._state = MediaPlayerState.PAUSED
+                    self._attr_state = MediaPlayerState.PAUSED
                 case "BUFFERING":
-                    self._state = MediaPlayerState.BUFFERING
+                    self._attr_state = MediaPlayerState.BUFFERING
                 case "STOPPED":
-                    self._state = MediaPlayerState.IDLE
+                    self._attr_state = MediaPlayerState.IDLE
                 case None:
-                    self._state = MediaPlayerState.OFF
+                    self._attr_state = MediaPlayerState.OFF
                 case _:
                     _LOGGER.warning(
                         "State not implemented: %s", data.get("state", {}).get("status")
                     )
-                    self._state = MediaPlayerState.ON
+                    self._attr_state = MediaPlayerState.ON
         except AttributeError:
-            self._state = MediaPlayerState.ON
+            self._attr_state = MediaPlayerState.ON
 
-        self._source = data.get("source", {}).get("sourceDisplayName", None)
+        self._attr_source = data.get("source", {}).get("sourceDisplayName", None)
 
-        self._media_title = data.get("metadata", {}).get("trackName")
-        self._media_artist = data.get("metadata", {}).get("artist")
-        self._media_album_name = data.get("metadata", {}).get("album")
-        self._media_duration = int(data.get("metadata", {}).get("duration", 999))
-        self._media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
-        self._last_update = dt_util.utcnow()
+        self._attr_media_title = data.get("metadata", {}).get("trackName")
+        self._attr_media_artist = data.get("metadata", {}).get("artist")
+        self._attr_media_album_name = data.get("metadata", {}).get("album")
+        self._attr_media_duration = int(data.get("metadata", {}).get("duration", 999))
+        self._attr_media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
+        self._attr_media_position_updated_at = dt_util.utcnow()
 
         self._now_playing_result: ContentNowPlaying = data
 
@@ -168,14 +171,14 @@ class BoseMediaPlayer(MediaPlayerEntity):
             and data.get("container", {}).get("contentItem", {}).get("sourceAccount")
             == "TV"
         ):
-            self._source = "TV"
-            self._media_title = "TV"
-            self._media_album_name = None
-            self._media_artist = None
-            self._media_duration = None
-            self._media_position = None
+            self._attr_source = "TV"
+            self._attr_media_title = "TV"
+            self._attr_media_album_name = None
+            self._attr_media_artist = None
+            self._attr_media_duration = None
+            self._attr_media_position = None
 
-        self._album_art = (
+        self._attr_media_image_url = (
             data.get("track", {}).get("contentItem", {}).get("containerArt")
         )
 
@@ -194,7 +197,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
                 ).get("sourceAccount"):
                     continue
 
-                self._source = name
+                self._attr_source = name
                 break
 
     async def async_update(self) -> None:
@@ -238,8 +241,8 @@ class BoseMediaPlayer(MediaPlayerEntity):
                         and source.get("sourceAccountName", None)
                         == value["sourceAccount"]
                     ):
-                        if key not in self._source_list:
-                            self._source_list.append(key)
+                        if key not in self._attr_source_list:
+                            self._attr_source_list.append(key)
 
         active_groups = await self.speaker.get_active_groups()
         self._parse_grouping({"activeGroups": active_groups})
@@ -260,44 +263,44 @@ class BoseMediaPlayer(MediaPlayerEntity):
         """Turn on the speaker."""
         await self.speaker.set_power_state(True)
         self._is_on = True
-        self._state = MediaPlayerState.IDLE
+        self._attr_state = MediaPlayerState.IDLE
         self.async_write_ha_state()
 
     async def async_turn_off(self) -> None:
         """Turn off the speaker."""
         await self.speaker.set_power_state(False)
         self._is_on = False
-        self._state = MediaPlayerState.OFF
+        self._attr_state = MediaPlayerState.OFF
         self.async_write_ha_state()
 
     async def async_media_stop(self) -> None:
         """Stop the playback."""
         await self.speaker.pause()
-        self._state = MediaPlayerState.IDLE
+        self._attr_state = MediaPlayerState.IDLE
         self.async_write_ha_state()
 
     async def async_set_volume_level(self, volume: float) -> None:
         """Set volume level (0.0 to 1.0)."""
         await self.speaker.set_audio_volume(int(volume * 100))
-        self._volume_level = volume
+        self._attr_volume_level = volume
         self.async_write_ha_state()
 
     async def async_mute_volume(self, mute: bool) -> None:
         """Send mute command."""
         await self.speaker.set_audio_volume_muted(mute)
-        self._muted = mute
+        self._attr_muted = mute
         self.async_write_ha_state()
 
     async def async_media_play(self) -> None:
         """Play the current media."""
         await self.speaker.play()
-        self._state = MediaPlayerState.PLAYING
+        self._attr_state = MediaPlayerState.PLAYING
         self.async_write_ha_state()
 
     async def async_media_pause(self) -> None:
         """Pause the current media."""
         await self.speaker.pause()
-        self._state = MediaPlayerState.PAUSED
+        self._attr_state = MediaPlayerState.PAUSED
         self.async_write_ha_state()
 
     async def async_media_next_track(self) -> None:
@@ -328,14 +331,14 @@ class BoseMediaPlayer(MediaPlayerEntity):
         ]
 
         if self._active_group_id is not None:
-            if self._group_members[0] != self.entity_id:
+            if self._attr_group_members[0] != self.entity_id:
                 _LOGGER.warning(
                     "Speakers can only join the master of the group, which is %s",
-                    self._group_members[0],
+                    self._attr_group_members[0],
                 )
                 _LOGGER.warning("Running action on master speaker")
                 master: BoseSpeaker = self.hass.data[DOMAIN][
-                    registry.async_get(self._group_members[0]).config_entry_id
+                    registry.async_get(self._attr_group_members[0]).config_entry_id
                 ]["speaker"]
                 await master.add_to_active_group(self._active_group_id, guids)
                 return
@@ -348,7 +351,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
     async def async_unjoin_player(self) -> None:
         """Unjoin the player from a group."""
 
-        master_entity_id = self._group_members[0]
+        master_entity_id = self._attr_group_members[0]
 
         if self.entity_id == master_entity_id:
             await self.speaker.stop_active_groups()
@@ -360,71 +363,6 @@ class BoseMediaPlayer(MediaPlayerEntity):
             await master_speaker.remove_from_active_group(
                 self._active_group_id, [self._device_id]
             )
-
-    @property
-    def name(self) -> str:
-        """Return the name of the speaker."""
-        return self._name
-
-    @property
-    def state(self) -> MediaPlayerState | None:
-        """Return the current state of the player."""
-        return self._state
-
-    @property
-    def volume_level(self) -> float:
-        """Return the volume level (0.0 to 1.0)."""
-        return self._volume_level
-
-    @property
-    def is_volume_muted(self) -> bool:
-        """Return True if volume is muted."""
-        return self._muted
-
-    @property
-    def media_title(self) -> str | None:
-        """Return the title of current playing media."""
-        return self._media_title
-
-    @property
-    def media_artist(self) -> str | None:
-        """Return the artist of current playing media (Music track only)."""
-        return self._media_artist
-
-    @property
-    def media_album_name(self) -> str | None:
-        """Return the album of current playing media (Music track only)."""
-        return self._media_album_name
-
-    @property
-    def media_duration(self) -> int | None:
-        """Return the duration of current playing media in seconds."""
-        return self._media_duration
-
-    @property
-    def media_position(self) -> int | None:
-        """Return the position of current playing media in seconds."""
-        return self._media_position
-
-    @property
-    def media_position_updated_at(self) -> dt_util.dt.datetime | None:
-        """Return the last time the media position was updated."""
-        return self._last_update
-
-    @property
-    def media_image_url(self) -> str | None:
-        """Return the URL of the album art."""
-        return self._album_art
-
-    @property
-    def source(self) -> str | None:
-        """Return the current input source."""
-        return self._source
-
-    @property
-    def source_list(self) -> list[str] | None:
-        """Return the list of available input sources."""
-        return self._source_list
 
     @property
     def unique_id(self) -> str:
@@ -474,16 +412,11 @@ class BoseMediaPlayer(MediaPlayerEntity):
             | MediaPlayerEntityFeature.SELECT_SOURCE
         )
 
-    @property
-    def group_members(self) -> list[str]:
-        """Return the list of members of this player's group."""
-        return self._group_members  # pyright: ignore[reportReturnType]
-
-    @property
+    @cached_property
     def device_info(self) -> DeviceInfo:
         """Return device information for Home Assistant integration."""
         return {
             "identifiers": {(DOMAIN, self._device_id)},  # pyright: ignore[reportReturnType]
             "manufacturer": "Bose",
-            "name": self._name,
+            "name": self._attr_name,
         }
