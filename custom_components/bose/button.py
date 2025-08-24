@@ -10,7 +10,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import refresh_token
 from .const import _LOGGER, DOMAIN
 from .entity import BoseBaseEntity
 
@@ -31,6 +30,10 @@ async def async_setup_entry(
         BosePresetbutton(speaker, config_entry, preset, presetNum)
         for presetNum, preset in presets.items()
     ]
+
+    # Add Bluetooth pairing button if Bluetooth is supported
+    if speaker.has_capability("/bluetooth/sink/pairable"):
+        entities.append(BoseBluetoothPairButton(speaker, config_entry))
 
     # Add button entity with device info
     async_add_entities(
@@ -111,3 +114,29 @@ class BosePresetbutton(BoseBaseEntity, ButtonEntity):
     async def async_update(self) -> None:
         """Update the button state."""
         _LOGGER.info("Updating button %s", self._attr_name)
+
+
+class BoseBluetoothPairButton(BoseBaseEntity, ButtonEntity):
+    """Button to enable Bluetooth pairing mode on Bose speakers."""
+
+    def __init__(
+        self,
+        speaker: BoseSpeaker,
+        config_entry: ConfigEntry,
+    ) -> None:
+        """Initialize the Bluetooth pairing button."""
+        BoseBaseEntity.__init__(self, speaker)
+        self._speaker = speaker
+        self.config_entry = config_entry
+        self._attr_name = "Bluetooth Pairing"
+        self._attr_translation_key = "bluetooth_pairing"
+        self._attr_icon = "mdi:bluetooth"
+        self._attr_entity_category = EntityCategory.CONFIG
+
+    async def async_press(self, **kwargs) -> None:
+        """Press the button to enable Bluetooth pairing."""
+        _LOGGER.info("Enabling Bluetooth pairing mode")
+        try:
+            await self._speaker.set_bluetooth_sink_pairable()
+        except (ConnectionError, TimeoutError) as err:
+            _LOGGER.error("Failed to enable Bluetooth pairing: %s", err)

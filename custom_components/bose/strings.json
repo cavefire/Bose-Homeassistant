@@ -19,6 +19,13 @@
       }
     }
   },
+  "entity": {
+    "button": {
+      "bluetooth_pairing": {
+        "name": "Bluetooth Pairing"
+      }
+    }
+  },
   "services": {
     "send_custom_request": {
       "name": "Send Custom Request",
@@ -35,6 +42,16 @@
         "body": {
           "name": "Request Body",
           "description": "Optional JSON body for the request (used for POST and PUT)."
+        }
+      }
+    },
+    "remove_bluetooth_device": {
+      "name": "Remove Bluetooth Device",
+      "description": "Remove a paired Bluetooth device by MAC address.",
+      "fields": {
+        "mac_address": {
+          "name": "MAC Address",
+          "description": "The MAC address of the Bluetooth device to remove."
         }
       }
     }

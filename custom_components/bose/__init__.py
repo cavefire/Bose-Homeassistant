@@ -311,6 +311,30 @@ def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
                 "description": str(e),
             }
 
+    async def handle_remove_bluetooth_device(call: ServiceCall) -> None:
+        """Handle remove Bluetooth device service call."""
+        ha_device_id = call.data["device_id"]
+        mac_address = call.data["mac_address"]
+
+        # Find the matching speaker instance
+        device_registry = dr.async_get(hass)
+        device_entry = device_registry.async_get(ha_device_id)
+        if device_entry is None or device_entry.primary_config_entry is None:
+            raise ValueError(
+                f"No valid config entry found for device_id: {ha_device_id}"
+            )
+        speaker = hass.data[DOMAIN][device_entry.primary_config_entry]["speaker"]
+
+        if not speaker:
+            raise ValueError(f"No speaker found for device_id: {ha_device_id}")
+
+        await speaker.remove_bluetooth_sink_device(mac_address)
+
+    hass.services.register(
+        DOMAIN,
+        "remove_bluetooth_device",
+        handle_remove_bluetooth_device,
+    )
     hass.services.register(
         DOMAIN,
         "send_custom_request",

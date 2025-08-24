@@ -28,3 +28,52 @@ send_custom_request:
       selector:
         object:
       description: 'Optional JSON body for the request (used for `POST` and `PUT`).'
+
+connect_bluetooth_device:
+  name: Connect Bluetooth Device
+  description: Connect to a Bluetooth device by MAC address.
+  target:
+    device:
+      integration: bose
+  fields:
+    mac_address:
+      required: true
+      example: '00:11:22:33:44:55'
+      selector:
+        text:
+      description: 'The MAC address of the Bluetooth device to connect.'
+
+disconnect_bluetooth_device:
+  name: Disconnect Bluetooth Device
+  description: Disconnect a Bluetooth device by MAC address.
+  target:
+    device:
+      integration: bose
+  fields:
+    mac_address:
+      required: true
+      example: '00:11:22:33:44:55'
+      selector:
+        text:
+      description: 'The MAC address of the Bluetooth device to disconnect.'
+
+remove_bluetooth_device:
+  name: Remove Bluetooth Device
+  description: Remove a paired Bluetooth device by MAC address.
+  target:
+    device:
+      integration: bose
+  fields:
+    mac_address:
+      required: true
+      example: '00:11:22:33:44:55'
+      selector:
+        text:
+      description: 'The MAC address of the Bluetooth device to remove.'
+
+set_bluetooth_pairable:
+  name: Enable Bluetooth Pairing
+  description: Enable Bluetooth pairing mode on the speaker.
+  target:
+    device:
+      integration: bose

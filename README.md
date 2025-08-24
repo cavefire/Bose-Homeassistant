@@ -47,7 +47,7 @@ This is the list of features implemented in the integration. Non-marked features
 - [x] See currently playing media (title, artist, album, cover, duration and position)
 - [x] Control media (play, pause, next, previous)
 - [x] Select sources (aux, chinch, optical - based on the speaker)
-- [ ] Control bluetooth 
+- [x] Control bluetooth 
 - [x] Audio setup (bass, treble, center, surround)
 - [x] Enable / disable bass module and gain
 - [x] Enable / disable surround speakers 

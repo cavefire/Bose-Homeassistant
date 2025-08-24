@@ -19,7 +19,24 @@
             }
         }
     },
+    "entity": {
+        "button": {
+            "bluetooth_pairing": {
+                "name": "Bluetooth Pairing"
+            }
+        }
+    },
     "services": {
+        "remove_bluetooth_device": {
+            "description": "Remove a paired Bluetooth device by MAC address.",
+            "fields": {
+                "mac_address": {
+                    "description": "The MAC address of the Bluetooth device to remove.",
+                    "name": "MAC Address"
+                }
+            },
+            "name": "Remove Bluetooth Device"
+        },
         "send_custom_request": {
             "description": "Send a direct request to a Bose speaker.",
             "fields": {

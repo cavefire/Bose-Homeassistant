@@ -1,6 +1,13 @@
 """Support for Bose media player."""
 
-from pybose.BoseResponse import AudioVolume, ContentNowPlaying, SystemInfo
+from pybose.BoseResponse import (
+    AudioVolume,
+    BluetoothSinkList,
+    BluetoothSinkStatus,
+    BluetoothSourceStatus,
+    ContentNowPlaying,
+    SystemInfo,
+)
 from pybose.BoseSpeaker import BoseSpeaker
 
 from homeassistant.components.media_player import (
@@ -44,6 +51,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         """Initialize the Bose media player."""
         BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
+        self.hass = hass
         self._attr_name = system_info["name"]
         self._device_id = speaker.get_device_id()
         self._is_on = False
@@ -67,6 +75,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
         }
+        self._bluetooth_devices: dict[str, dict] = {}
 
         speaker.attach_receiver(self.parse_message)
 
@@ -88,6 +97,12 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             self._parse_now_playing(ContentNowPlaying(body))
         elif resource == "/grouping/activeGroups":
             self._parse_grouping(body)
+        elif resource == "/bluetooth/sink/list":
+            self._parse_bluetooth_sink_list(BluetoothSinkList(body))
+        elif resource == "/bluetooth/sink/status":
+            self._parse_bluetooth_sink_status(BluetoothSinkStatus(body))
+        elif resource == "/bluetooth/source/status":
+            self._parse_bluetooth_source_status(BluetoothSourceStatus(body))
 
         self.async_write_ha_state()
 
@@ -134,7 +149,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
-            match data.get("state", {}).get("status"):
+            status = data.get("state", {}).get("status")
+            match status:
                 case "PLAY":
                     self._attr_state = MediaPlayerState.PLAYING
                 case "PAUSED":
@@ -144,11 +160,9 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 case "STOPPED":
                     self._attr_state = MediaPlayerState.IDLE
                 case None:
-                    self._attr_state = MediaPlayerState.OFF
+                    self._attr_state = MediaPlayerState.STANDBY
                 case _:
-                    _LOGGER.warning(
-                        "State not implemented: %s", data.get("state", {}).get("status")
-                    )
+                    _LOGGER.warning("State not implemented: %s", status)
                     self._attr_state = MediaPlayerState.ON
         except AttributeError:
             self._attr_state = MediaPlayerState.ON
@@ -175,28 +189,130 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             self._attr_media_artist = None
             self._attr_media_duration = None
             self._attr_media_position = None
-
         self._attr_media_image_url = (
             data.get("track", {}).get("contentItem", {}).get("containerArt")
         )
 
-        # Update selected source if it matches one of our available sources
-        for name, source_data in self._available_sources.items():
-            if data.get("container", {}).get("contentItem", {}).get(
-                "source"
-            ) == source_data.get("source"):
-                if source_data.get("source") in ("SPOTIFY", "AMAZON", "DEEZER"):
-                    if data.get("container", {}).get("contentItem", {}).get(
-                        "sourceAccount"
-                    ) != source_data.get("accountId"):
+        if data.get("source", {}).get("sourceID") == "BLUETOOTH":
+            # Fetch active Bluetooth device asynchronously to avoid using await in sync parser
+            if getattr(self, "hass", None) is not None:
+                self.hass.async_create_task(
+                    self._async_update_active_bluetooth_source()
+                )
+        else:
+            for name, source_data in self._available_sources.items():
+                if data.get("container", {}).get("contentItem", {}).get(
+                    "source"
+                ) == source_data.get("source"):
+                    if source_data.get("source") in ("SPOTIFY", "AMAZON", "DEEZER"):
+                        if data.get("container", {}).get("contentItem", {}).get(
+                            "sourceAccount"
+                        ) != source_data.get("accountId"):
+                            continue
+                    elif source_data.get("sourceAccount") != data.get(
+                        "container", {}
+                    ).get("contentItem", {}).get("sourceAccount"):
                         continue
-                elif source_data.get("sourceAccount") != data.get("container", {}).get(
-                    "contentItem", {}
-                ).get("sourceAccount"):
-                    continue
 
-                self._attr_source = name
-                break
+                    self._attr_source = name
+                    break
+
+    def _parse_bluetooth_sink_list(self, data: BluetoothSinkList) -> None:
+        """Parse Bluetooth sink list."""
+        devices = data.get("devices", [])
+        for device in devices:
+            mac = device.get("mac", "")
+            name = device.get("name", "Unknown Device")
+            if mac:
+                self._bluetooth_devices[mac] = {
+                    "name": name,
+                    "mac": mac,
+                    "device_class": device.get("deviceClass", ""),
+                    "type": "sink",
+                }
+
+    def _parse_bluetooth_sink_status(self, data: BluetoothSinkStatus) -> None:
+        """Parse Bluetooth sink status."""
+        active_device = data.get("activeDevice")
+
+        # Update Bluetooth devices from status
+        devices = data.get("devices", [])
+        for device in devices:
+            mac = device.get("mac", "")
+            name = device.get("name", "Unknown Device")
+            if mac:
+                self._bluetooth_devices[mac] = {
+                    "name": name,
+                    "mac": mac,
+                    "device_class": device.get("deviceClass", ""),
+                    "type": "sink",
+                    "active": mac == active_device,
+                }
+
+        # Update source list with Bluetooth devices
+        self._update_bluetooth_source_list()
+
+        # Update current source if a Bluetooth device is active
+        if active_device and active_device in self._bluetooth_devices:
+            bluetooth_device = self._bluetooth_devices[active_device]
+            self._attr_source = f"Bluetooth: {bluetooth_device['name']}"
+
+    def _parse_bluetooth_source_status(self, data: BluetoothSourceStatus) -> None:
+        """Parse Bluetooth source status."""
+        devices = data.get("devices", [])
+        for device in devices:
+            mac = device.get("mac", "")
+            name = device.get("name", "Unknown Device")
+            if mac:
+                self._bluetooth_devices[mac] = {
+                    "name": name,
+                    "mac": mac,
+                    "device_class": device.get("deviceClass", ""),
+                    "type": "source",
+                }
+
+        # Update source list with Bluetooth devices
+        self._update_bluetooth_source_list()
+
+    def _update_bluetooth_source_list(self) -> None:
+        """Update the source list with Bluetooth devices."""
+        # Remove old Bluetooth sources
+        self._attr_source_list = [
+            source
+            for source in self._attr_source_list
+            if not source.startswith("Bluetooth:")
+        ]
+
+        # Add Bluetooth devices to source list
+        for device in self._bluetooth_devices.values():
+            bluetooth_source = f"Bluetooth: {device['name']}"
+            if bluetooth_source not in self._attr_source_list:
+                self._attr_source_list.append(bluetooth_source)
+
+    async def _async_update_active_bluetooth_source(self) -> None:
+        """Async helper to fetch active Bluetooth device and update source."""
+        try:
+            status = await self.speaker.get_bluetooth_sink_status()
+        except (ConnectionError, TimeoutError) as err:
+            _LOGGER.debug("Failed to fetch active Bluetooth device: %s", err)
+            return
+
+        active_device = None
+        if isinstance(status, dict):
+            active_device = status.get("activeDevice")
+        else:
+            get_fn = getattr(status, "get", None)
+            if callable(get_fn):
+                try:
+                    active_device = get_fn("activeDevice")
+                except Exception:
+                    active_device = None
+
+        if active_device and active_device in self._bluetooth_devices:
+            bluetooth_device = self._bluetooth_devices[active_device]
+            self._attr_source = f"Bluetooth: {bluetooth_device['name']}"
+            self.async_write_ha_state()
+            self._attr_source_list.append(self._attr_source)
 
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
@@ -205,6 +321,19 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         data = await self.speaker.get_audio_volume()
         self._parse_audio_volume(data)
+
+        # Refresh Bluetooth information
+        try:
+            bluetooth_sink_status = await self.speaker.get_bluetooth_sink_status()
+            self._parse_bluetooth_sink_status(bluetooth_sink_status)
+
+            bluetooth_sink_list = await self.speaker.get_bluetooth_sink_list()
+            self._parse_bluetooth_sink_list(bluetooth_sink_list)
+
+            bluetooth_source_status = await self.speaker.get_bluetooth_source_status()
+            self._parse_bluetooth_source_status(bluetooth_source_status)
+        except (ConnectionError, TimeoutError) as err:
+            _LOGGER.debug("Failed to get Bluetooth information: %s", err)
 
         # Refresh available sources (build human readable list)
         sources = await self.speaker.get_sources()
@@ -248,6 +377,27 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     async def async_select_source(self, source: str) -> None:
         """Select an input source on the speaker."""
+        # Check if it's a Bluetooth source
+        if source.startswith("Bluetooth:"):
+            device_name = source.replace("Bluetooth: ", "")
+            # Find the device by name
+            for device in self._bluetooth_devices.values():
+                if device["name"] == device_name:
+                    try:
+                        await self.speaker.connect_bluetooth_sink_device(device["mac"])
+                        self._attr_source = source
+                        self.async_write_ha_state()
+                    except (ConnectionError, TimeoutError) as err:
+                        _LOGGER.error(
+                            "Failed to connect to Bluetooth device %s: %s",
+                            device_name,
+                            err,
+                        )
+                    return
+            _LOGGER.warning("Bluetooth device %s not found", device_name)
+            return
+
+        # Handle regular sources
         if source not in self._available_sources:
             return
 
