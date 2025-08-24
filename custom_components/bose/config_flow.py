@@ -157,11 +157,13 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if self._auth is None:
             return self.async_abort(reason="auth_failed")
 
+        tokens = self._auth.getCachedToken()
+
         if (
-            self._auth.getCachedToken() is None
-            or self._auth.getCachedToken().get("bose_person_id") is None
-            or self._auth.getCachedToken().get("access_token") is None
-            or self._auth.getCachedToken().get("refresh_token") is None
+            tokens is None
+            or tokens.get("bosePersonID") is None
+            or tokens.get("access_token") is None
+            or tokens.get("refresh_token") is None
         ):
             return self.async_abort(reason="auth_failed")
 
@@ -171,9 +173,9 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "mail": self.mail,
                 "password": self.password,
                 "ip": ip,
-                "bose_person_id": self._auth.getCachedToken().get("bose_person_id"),
-                "access_token": self._auth.getCachedToken().get("access_token"),
-                "refresh_token": self._auth.getCachedToken().get("refresh_token"),
+                "bose_person_id": tokens.get("bosePersonID"),
+                "access_token": tokens.get("access_token"),
+                "refresh_token": tokens.get("refresh_token"),
                 "guid": guid,
                 "serial": system_info["serialNumber"],
                 "name": system_info["name"],
