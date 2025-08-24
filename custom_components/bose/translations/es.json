@@ -40,36 +40,36 @@
       "audio_mode": {
         "name": "Modo de audio",
         "state": {
-          "Dialogue": "Modo diálogo",
-          "AI Dialogue Mode": "Modo diálogo IA",
-          "Normal Mode": "Modo normal"
+          "dialog": "Modo diálogo",
+          "dynamic_dialog": "Modo diálogo IA",
+          "normal": "Modo normal"
         }
       },
       "cec_settings": {
         "name": "Ajustes CEC",
         "state": {
-          "CEC active": "Predeterminado (CEC activo)",
-          "CEC inactive": "Apagado (CEC inactivo)",
-          "Option 2": "Opción 2 (TVs antiguos)",
-          "Option 3": "Opción 3 (el control remoto no enciende el TV)",
-          "Option 4": "Opción 4 (el TV no envía audio a la barra de sonido)",
-          "Option 5": "Opción 5 (el TV no tiene audio)",
-          "Option 6": "Opción 6 (la barra de sonido permanece encendida)"
+          "cec_active": "Predeterminado (CEC activo)",
+          "cec_inactive": "Apagado (CEC inactivo)",
+          "option2": "Opción 2 (TVs antiguos)",
+          "option3": "Opción 3 (el control remoto no enciende el TV)",
+          "option4": "Opción 4 (el TV no envía audio a la barra de sonido)",
+          "option5": "Opción 5 (el TV no tiene audio)",
+          "option6": "Opción 6 (la barra de sonido permanece encendida)"
         }
       },
       "dual_mono": {
         "name": "Dual Mono",
         "state": {
-          "Both": "Ambos",
-          "Track 1": "Pista de audio 1",
-          "Track 2": "Pista de audio 2"
+          "both": "Ambos",
+          "track1": "Pista de audio 1",
+          "track2": "Pista de audio 2"
         }
       },
       "rebroadcast_latency": {
         "name": "Sincronización de grupo",
         "state": {
-          "Sync With TV": "Sincronizar con TV",
-          "Sync With Group": "Sincronizar con grupo"
+          "sync_to_room": "Sincronizar con TV",
+          "sync_with_group": "Sincronizar con grupo"
         }
       }
     },
@@ -110,23 +110,23 @@
       "center": {
         "name": "Canal central"
       },
-      "subwooferGain": {
+      "subwoofer_gain": {
         "name": "Ganancia del subwoofer"
       },
       "height": {
         "name": "Canal de altura"
       },
-      "avSync": {
+      "av_sync": {
         "name": "Sincronización AV"
       }
     }
   },
   "exceptions": {
     "bluetooth_connect_failed": {
-      "message": "No se pudo conectar con el dispositivo Bluetooth '{device_name}': {error}"
+      "message": "No se pudo conectar con el dispositivo Bluetooth {device_name}: {error}"
     },
     "bluetooth_device_not_found": {
-      "message": "Dispositivo Bluetooth '{device_name}' no encontrado."
+      "message": "Dispositivo Bluetooth {device_name} no encontrado."
     },
     "bluetooth_pairing_failed": {
       "message": "No se pudo activar el emparejamiento Bluetooth: {error}"

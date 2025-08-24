@@ -42,7 +42,7 @@
             }
         },
         "number": {
-            "avSync": {
+            "av_sync": {
                 "name": "AV Sync"
             },
             "bass": {
@@ -54,7 +54,7 @@
             "height": {
                 "name": "Height Channel"
             },
-            "subwooferGain": {
+            "subwoofer_gain": {
                 "name": "Subwoofer Gain"
             },
             "treble": {
@@ -65,36 +65,36 @@
             "audio_mode": {
                 "name": "Audio Mode",
                 "state": {
-                    "AI Dialogue Mode": "AI Dialogue Mode",
-                    "Dialogue": "Dialogue Mode",
-                    "Normal Mode": "Normal Mode"
+                    "dialog": "dialog",
+                    "dynamic_dialog": "dynamic_dialog",
+                    "normal": "normal"
                 }
             },
             "cec_settings": {
                 "name": "CEC Settings",
                 "state": {
-                    "CEC active": "Default (CEC active)",
-                    "CEC inactive": "Off (CEC inactive)",
-                    "Option 2": "Option 2 (older TVs)",
-                    "Option 3": "Option 3 (remote does not power on TV)",
-                    "Option 4": "Option 4 (TV no sound via soundbar)",
-                    "Option 5": "Option 5 (TV no sound)",
-                    "Option 6": "Option 6 (soundbar stays on)"
+                    "cec_active": "Default (CEC active)",
+                    "cec_inactive": "Off (CEC inactive)",
+                    "option2": "Option 2 (older TVs)",
+                    "option3": "Option 3 (remote does not power on TV)",
+                    "option4": "Option 4 (TV no sound via soundbar)",
+                    "option5": "Option 5 (TV no sound)",
+                    "option6": "Option 6 (soundbar stays on)"
                 }
             },
             "dual_mono": {
                 "name": "Dual Mono",
                 "state": {
-                    "Both": "Both",
-                    "Track 1": "Audio Track 1",
-                    "Track 2": "Audio Track 2"
+                    "both": "both",
+                    "track1": "Audio Track 1",
+                    "track2": "Audio Track 2"
                 }
             },
             "rebroadcast_latency": {
                 "name": "Group Synchronization",
                 "state": {
-                    "Sync With Group": "Sync with Group",
-                    "Sync With TV": "Sync with TV"
+                    "sync_to_room": "Sync with TV",
+                    "sync_with_group": "Sync with Group"
                 }
             }
         },
@@ -123,10 +123,10 @@
     },
     "exceptions": {
         "bluetooth_connect_failed": {
-            "message": "Failed to connect to Bluetooth device '{device_name}': {error}"
+            "message": "Failed to connect to Bluetooth device {device_name}: {error}"
         },
         "bluetooth_device_not_found": {
-            "message": "Bluetooth device '{device_name}' not found."
+            "message": "Bluetooth device {device_name} not found."
         },
         "bluetooth_pairing_failed": {
             "message": "Failed to enable Bluetooth pairing: {error}"

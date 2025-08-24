@@ -20,25 +20,25 @@ from .entity import BoseBaseEntity
 
 HUMINZED_OPTIONS = {
     # Audio Mode
-    "DYNAMIC_DIALOG": "AI Dialogue Mode",
-    "DIALOG": "Dialogue Mode",
-    "NORMAL": "Normal Mode",
+    "DYNAMIC_DIALOG": "dynamic_dialog",
+    "DIALOG": "dialog",
+    "NORMAL": "normal",
     # Dual Mono
-    "LEFT": "Track 1",
-    "RIGHT": "Track 2",
-    "BOTH": "Both",
+    "LEFT": "track1",
+    "RIGHT": "track2",
+    "BOTH": "both",
     # Rebroadcast Latency
-    "SYNC_TO_ROOM": "Sync With TV",
-    "SYNC_TO_ZONE": "Sync With Group",
+    "SYNC_TO_ROOM": "sync_to_room",
+    "SYNC_TO_ZONE": "sync_with_group",
     # CEC
-    "ON": "CEC active",
-    "OFF": "CEC inactive",
-    "ALTERNATE_ON": "Option 2",
-    "ALTMODE_3": "Option 3",
-    "ALTMODE_4": "Option 4",
-    "ALTMODE_5": "Option 5",
-    "ALTMODE_6": "Option 6",
-    "ALTMODE_7": "Option 7",
+    "ON": "cec_active",
+    "OFF": "cec_inactive",
+    "ALTERNATE_ON": "option2",
+    "ALTMODE_3": "option3",
+    "ALTMODE_4": "option4",
+    "ALTMODE_5": "option5",
+    "ALTMODE_6": "option6",
+    "ALTMODE_7": "option7",
 }
 
 

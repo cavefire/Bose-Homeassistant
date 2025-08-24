@@ -45,36 +45,36 @@
       "audio_mode": {
         "name": "Audiomodus",
         "state": {
-          "Dialogue": "Dialogmodus",
-          "AI Dialogue Mode": "KI‑Dialogmodus",
-          "Normal Mode": "Normalmodus"
+          "dialog": "Dialogmodus",
+          "dynamic_dialog": "KI‑Dialogmodus",
+          "normal": "Normalmodus"
         }
       },
       "cec_settings": {
         "name": "CEC‑Einstellungen",
         "state": {
-          "CEC active": "Standardeinstellung (CEC aktiv)",
-          "CEC inactive": "Aus (CEC inaktiv)",
-          "Option 2": "Option 2 (ältere TVs)",
-          "Option 3": "Option 3 (Fernbedinung schaltet TV nicht ein)",
-          "Option 4": "Option 4 (TV kein Ton über Soundbar)",
-          "Option 5": "Option 5 (TV kein Ton)",
-          "Option 6": "Option 6 (Soundbar bleibt an)"
+          "cec_active": "Standardeinstellung (CEC aktiv)",
+          "cec_inactive": "Aus (CEC inaktiv)",
+          "option2": "Option 2 (ältere TVs)",
+          "option3": "Option 3 (Fernbedinung schaltet TV nicht ein)",
+          "option4": "Option 4 (TV kein Ton über Soundbar)",
+          "option5": "Option 5 (TV kein Ton)",
+          "option6": "Option 6 (Soundbar bleibt an)"
         }
       },
       "dual_mono": {
         "name": "Dual‑Mono",
         "state": {
-          "Both": "Beide",
-          "Track 1": "Audiospur 1",
-          "Track 2": "Audiospur 2"
+          "both": "Beide",
+          "track1": "Audiospur 1",
+          "track2": "Audiospur 2"
         }
       },
       "rebroadcast_latency": {
         "name": "Gruppensynchronisation",
         "state": {
-          "Sync With TV": "Mit Fernsehgerät synchronisieren",
-          "Sync With Group": "Mit Gruppe synchronisieren"
+          "sync_to_room": "Mit Fernsehgerät synchronisieren",
+          "sync_with_group": "Mit Gruppe synchronisieren"
         }
       }
     },
@@ -110,23 +110,23 @@
       "center": {
         "name": "Center-Kanal"
       },
-      "subwooferGain": {
+      "subwoofer_gain": {
         "name": "Subwoofer‑Verstärkung"
       },
       "height": {
         "name": "Höhen-Kanal"
       },
-      "avSync": {
+      "av_sync": {
         "name": "AV‑Sync"
       }
     }
   },
   "exceptions": {
     "bluetooth_connect_failed": {
-      "message": "Verbindung zum Bluetooth‑Gerät '{device_name}' ist fehlgeschlagen: {error}"
+      "message": "Verbindung zum Bluetooth‑Gerät {device_name} ist fehlgeschlagen: {error}"
     },
     "bluetooth_device_not_found": {
-      "message": "Bluetooth‑Gerät '{device_name}' wurde nicht gefunden."
+      "message": "Bluetooth‑Gerät {device_name} wurde nicht gefunden."
     },
     "bluetooth_pairing_failed": {
       "message": "Aktivierung der Bluetooth‑Kopplung fehlgeschlagen: {error}"

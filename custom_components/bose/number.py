@@ -50,6 +50,7 @@ ADJUSTABLE_PARAMETERS = [
         "display": "Subwoofer Gain",
         "path": "/audio/subwooferGain",
         "option": "subwooferGain",
+        "translation_key": "subwoofer_gain",
         "min": -100,
         "max": 100,
         "step": 10,
@@ -66,6 +67,7 @@ ADJUSTABLE_PARAMETERS = [
         "display": "AV Sync",
         "path": "/audio/avSync",
         "option": "avSync",
+        "translation_key": "av_sync",
         "min": 0,
         "max": 200,
         "step": 10,
@@ -118,7 +120,8 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
         self._attr_native_max_value = parameter.get("max")
         self._attr_native_step = parameter.get("step")
         self._attr_icon = "mdi:sine-wave"
-        self._attr_translation_key = self._option
+        self._attr_translation_key = parameter.get("translation_key", self._option)
+        self._cf_unique_id = self._option
         self._attr_capability_attributes = {
             ATTR_MIN: self._attr_min_value,
             ATTR_MAX: self._attr_max_value,
