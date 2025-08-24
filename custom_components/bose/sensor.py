@@ -5,13 +5,11 @@ from pybose.BoseResponse import Battery
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import refresh_token
 from .bose.battery import BoseBatteryBase
-from .const import _LOGGER, DOMAIN
+from .const import DOMAIN
 from .entity import BoseBaseEntity
 
 
@@ -46,7 +44,7 @@ class BoseBatteryLevelSensor(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         """Initialize battery level sensor."""
         BoseBaseEntity.__init__(self, speaker)
         BoseBatteryBase.__init__(self, speaker, config_entry, hass)
-        self._attr_name = "Battery Level"
+        self._attr_translation_key = "battery_level"
         self._attr_native_unit_of_measurement = "%"
         self._attr_device_class = SensorDeviceClass.BATTERY
 
@@ -67,7 +65,7 @@ class BoseBatteryTimeTillFull(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         """Initialize charging state sensor."""
         BoseBaseEntity.__init__(self, speaker)
         BoseBatteryBase.__init__(self, speaker, config_entry, hass)
-        self._attr_name = "Time till Full"
+        self._attr_translation_key = "time_till_full"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = "min"
 
@@ -94,7 +92,7 @@ class BoseBatteryTimeTillEmpty(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         """Initialize charging state sensor."""
         BoseBaseEntity.__init__(self, speaker)
         BoseBatteryBase.__init__(self, speaker, config_entry, hass)
-        self._attr_name = "Time till empty"
+        self._attr_translation_key = "time_till_empty"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = "min"
 

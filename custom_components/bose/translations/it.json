@@ -1,0 +1,166 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Il dispositivo è già configurato",
+      "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l’indirizzo email e la password.",
+      "connect_failed": "Connessione all’altoparlante non riuscita. Assicurati che l’altoparlante sia acceso, collegato e che l’indirizzo IP sia corretto.",
+      "info_failed": "Connessione al dispositivo stabilita, ma il recupero delle informazioni dell’altoparlante non è riuscito. Controlla i log per maggiori dettagli."
+    },
+    "error": {
+      "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l’indirizzo email e la password."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "device": "Seleziona il tuo dispositivo BOSE",
+          "mail": "Indirizzo email del tuo account BOSE",
+          "manual_ip": "Inserisci manualmente l’indirizzo IP",
+          "password": "Password del tuo account BOSE"
+        }
+      },
+      "manual_ip": {
+        "data": {
+          "manual_ip": "Indirizzo IP del tuo dispositivo BOSE"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "charging_state": {
+        "name": "Stato di carica"
+      }
+    },
+    "button": {
+      "bluetooth_pairing": {
+        "name": "Accoppiamento Bluetooth"
+      }
+    },
+    "select": {
+      "audio_mode": {
+        "name": "Modalità audio",
+        "state": {
+          "Dialogue": "Modalità dialogo",
+          "AI Dialogue Mode": "Modalità dialogo IA",
+          "Normal Mode": "Modalità normale"
+        }
+      },
+      "cec_settings": {
+        "name": "Impostazioni CEC",
+        "state": {
+          "CEC active": "Predefinito (CEC attivo)",
+          "CEC inactive": "Spento (CEC inattivo)",
+          "Option 2": "Opzione 2 (TV più vecchi)",
+          "Option 3": "Opzione 3 (il telecomando non accende la TV)",
+          "Option 4": "Opzione 4 (nessun audio dalla TV tramite soundbar)",
+          "Option 5": "Opzione 5 (la TV non ha audio)",
+          "Option 6": "Opzione 6 (la soundbar rimane accesa)"
+        }
+      },
+      "dual_mono": {
+        "name": "Dual Mono",
+        "state": {
+          "Both": "Entrambi",
+          "Track 1": "Traccia audio 1",
+          "Track 2": "Traccia audio 2"
+        }
+      },
+      "rebroadcast_latency": {
+        "name": "Sincronizzazione di gruppo",
+        "state": {
+          "Sync With TV": "Sincronizza con TV",
+          "Sync With Group": "Sincronizza con gruppo"
+        }
+      }
+    },
+    "sensor": {
+      "battery_level": {
+        "name": "Livello batteria"
+      },
+      "time_till_empty": {
+        "name": "Tempo fino a scarica"
+      },
+      "time_till_full": {
+        "name": "Tempo fino a carica completa"
+      }
+    },
+    "switch": {
+      "auto_standby": {
+        "name": "Standby automatico"
+      },
+      "subs": {
+        "name": "Subwoofer"
+      },
+      "rears": {
+        "name": "Altoparlanti posteriori"
+      }
+    },
+    "number": {
+      "bass": {
+        "name": "Bassi"
+      },
+      "treble": {
+        "name": "Alti"
+      },
+      "center": {
+        "name": "Canale centrale"
+      },
+      "subwooferGain": {
+        "name": "Guadagno subwoofer"
+      },
+      "height": {
+        "name": "Canale altezza"
+      },
+      "avSync": {
+        "name": "Sync AV"
+      }
+    }
+  },
+  "exceptions": {
+    "bluetooth_connect_failed": {
+      "message": "Connessione al dispositivo Bluetooth '{device_name}' non riuscita: {error}"
+    },
+    "bluetooth_device_not_found": {
+      "message": "Dispositivo Bluetooth '{device_name}' non trovato."
+    },
+    "bluetooth_pairing_failed": {
+      "message": "Attivazione dell’accoppiamento Bluetooth non riuscita: {error}"
+    },
+    "config_entry_not_found": {
+      "message": "Nessuna voce valida trovata per l’ID dispositivo: {device_id}"
+    },
+    "speaker_not_found": {
+      "message": "Nessun altoparlante trovato per l’ID dispositivo: {device_id}"
+    }
+  },
+  "services": {
+    "remove_bluetooth_device": {
+      "description": "Rimuovi un dispositivo Bluetooth associato tramite indirizzo MAC.",
+      "fields": {
+        "mac_address": {
+          "description": "L’indirizzo MAC del dispositivo Bluetooth da rimuovere.",
+          "name": "Indirizzo MAC"
+        }
+      },
+      "name": "Rimuovi dispositivo Bluetooth"
+    },
+    "send_custom_request": {
+      "description": "Invia una richiesta diretta a un altoparlante Bose.",
+      "fields": {
+        "body": {
+          "description": "Corpo JSON opzionale per la richiesta (usato per POST e PUT).",
+          "name": "Corpo della richiesta"
+        },
+        "method": {
+          "description": "Il metodo HTTP da utilizzare (GET, POST, PUT, DELETE).",
+          "name": "Metodo HTTP"
+        },
+        "resource": {
+          "description": "Il percorso della risorsa API da richiedere (es. `/system/info`).",
+          "name": "Risorsa"
+        }
+      },
+      "name": "Invia richiesta personalizzata"
+    }
+  }
+}

@@ -14,6 +14,7 @@ from homeassistant.core import (
     ServiceResponse,
     SupportsResponse,
 )
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
@@ -320,13 +321,19 @@ def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
         device_registry = dr.async_get(hass)
         device_entry = device_registry.async_get(ha_device_id)
         if device_entry is None or device_entry.primary_config_entry is None:
-            raise ValueError(
-                f"No valid config entry found for device_id: {ha_device_id}"
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="config_entry_not_found",
+                translation_placeholders={"device_id": ha_device_id},
             )
         speaker = hass.data[DOMAIN][device_entry.primary_config_entry]["speaker"]
 
         if not speaker:
-            raise ValueError(f"No speaker found for device_id: {ha_device_id}")
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="speaker_not_found",
+                translation_placeholders={"device_id": ha_device_id},
+            )
 
         await speaker.remove_bluetooth_sink_device(mac_address)
 
@@ -389,7 +396,7 @@ async def connect_to_bose(
     try:
         await speaker.connect()
     except Exception as e:  # noqa: BLE001
-        _LOGGER.error(f"Failed to connect to Bose speaker (IP: {data['ip']}): {e}")
+        _LOGGER.error("Failed to connect to Bose speaker (IP: %s): %s", data["ip"], e)
         return None
 
     return speaker

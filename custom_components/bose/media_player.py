@@ -17,6 +17,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -388,14 +389,20 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                         self._attr_source = source
                         self.async_write_ha_state()
                     except (ConnectionError, TimeoutError) as err:
-                        _LOGGER.error(
-                            "Failed to connect to Bluetooth device %s: %s",
-                            device_name,
-                            err,
-                        )
+                        raise ServiceValidationError(
+                            translation_domain=DOMAIN,
+                            translation_key="bluetooth_connect_failed",
+                            translation_placeholders={
+                                "device_name": device_name,
+                                "error": str(err),
+                            },
+                        ) from err
                     return
-            _LOGGER.warning("Bluetooth device %s not found", device_name)
-            return
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="bluetooth_device_not_found",
+                translation_placeholders={"device_name": device_name},
+            )
 
         # Handle regular sources
         if source not in self._available_sources:

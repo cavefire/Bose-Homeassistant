@@ -1,59 +1,166 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "Device is already configured",
+      "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password.",
+      "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
+      "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details."
     },
     "error": {
-      "info_failed": "Connection to device made, but failed to fetch speaker info. Check your logs for more information.",
-      "auth_failed": "Could not authenticate with your BOSE account. Check your username and password.",
-      "connect_failed": "Could not connect to the speaker. Check if the speaker is powered on, connected and the IP address is correct."
+      "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
     },
     "step": {
       "user": {
         "data": {
-          "mail": "BOSE Account E-Mail Address",
-          "password": "BOSE Account Password",
           "device": "Select your BOSE device",
-          "manual_ip": "Enter the IP address of your BOSE device"
+          "mail": "Email address of your BOSE account",
+          "manual_ip": "Enter IP address manually",
+          "password": "Password of your BOSE account"
+        }
+      },
+      "manual_ip": {
+        "data": {
+          "manual_ip": "IP address of your BOSE device"
         }
       }
     }
   },
   "entity": {
+    "binary_sensor": {
+      "charging_state": {
+        "name": "Charging State"
+      }
+    },
     "button": {
       "bluetooth_pairing": {
         "name": "Bluetooth Pairing"
       }
-    }
-  },
-  "services": {
-    "send_custom_request": {
-      "name": "Send Custom Request",
-      "description": "Send a direct request to a Bose speaker.",
-      "fields": {
-        "resource": {
-          "name": "Resource",
-          "description": "The API resource path to request (e.g., `/system/info`)."
-        },
-        "method": {
-          "name": "HTTP Method",
-          "description": "The HTTP method to use (GET, POST, PUT, DELETE)."
-        },
-        "body": {
-          "name": "Request Body",
-          "description": "Optional JSON body for the request (used for POST and PUT)."
+    },
+    "select": {
+      "audio_mode": {
+        "name": "Audio Mode",
+        "state": {
+          "Dialogue": "Dialogue Mode",
+          "AI Dialogue Mode": "AI Dialogue Mode",
+          "Normal Mode": "Normal Mode"
+        }
+      },
+      "cec_settings": {
+        "name": "CEC Settings",
+        "state": {
+          "CEC active": "Default (CEC active)",
+          "CEC inactive": "Off (CEC inactive)",
+          "Option 2": "Option 2 (older TVs)",
+          "Option 3": "Option 3 (remote does not power on TV)",
+          "Option 4": "Option 4 (TV no sound via soundbar)",
+          "Option 5": "Option 5 (TV no sound)",
+          "Option 6": "Option 6 (soundbar stays on)"
+        }
+      },
+      "dual_mono": {
+        "name": "Dual Mono",
+        "state": {
+          "Both": "Both",
+          "Track 1": "Audio Track 1",
+          "Track 2": "Audio Track 2"
+        }
+      },
+      "rebroadcast_latency": {
+        "name": "Group Synchronization",
+        "state": {
+          "Sync With TV": "Sync with TV",
+          "Sync With Group": "Sync with Group"
         }
       }
     },
+    "sensor": {
+      "battery_level": {
+        "name": "Battery Level"
+      },
+      "time_till_empty": {
+        "name": "Time Until Empty"
+      },
+      "time_till_full": {
+        "name": "Time Until Full"
+      }
+    },
+    "switch": {
+      "auto_standby": {
+        "name": "Auto Standby"
+      },
+      "subs": {
+        "name": "Subwoofer"
+      },
+      "rears": {
+        "name": "Rear Speakers"
+      }
+    },
+    "number": {
+      "bass": {
+        "name": "Bass"
+      },
+      "treble": {
+        "name": "Treble"
+      },
+      "center": {
+        "name": "Center Channel"
+      },
+      "subwooferGain": {
+        "name": "Subwoofer Gain"
+      },
+      "height": {
+        "name": "Height Channel"
+      },
+      "avSync": {
+        "name": "AV Sync"
+      }
+    }
+  },
+  "exceptions": {
+    "bluetooth_connect_failed": {
+      "message": "Failed to connect to Bluetooth device '{device_name}': {error}"
+    },
+    "bluetooth_device_not_found": {
+      "message": "Bluetooth device '{device_name}' not found."
+    },
+    "bluetooth_pairing_failed": {
+      "message": "Failed to enable Bluetooth pairing: {error}"
+    },
+    "config_entry_not_found": {
+      "message": "No valid entry found for device ID: {device_id}"
+    },
+    "speaker_not_found": {
+      "message": "No speaker found for device ID: {device_id}"
+    }
+  },
+  "services": {
     "remove_bluetooth_device": {
-      "name": "Remove Bluetooth Device",
       "description": "Remove a paired Bluetooth device by MAC address.",
       "fields": {
         "mac_address": {
-          "name": "MAC Address",
-          "description": "The MAC address of the Bluetooth device to remove."
+          "description": "The MAC address of the Bluetooth device to remove.",
+          "name": "MAC Address"
         }
-      }
+      },
+      "name": "Remove Bluetooth Device"
+    },
+    "send_custom_request": {
+      "description": "Send a direct request to a Bose speaker.",
+      "fields": {
+        "body": {
+          "description": "Optional JSON body for the request (used for POST and PUT).",
+          "name": "Request Body"
+        },
+        "method": {
+          "description": "The HTTP method to use (GET, POST, PUT, DELETE).",
+          "name": "HTTP Method"
+        },
+        "resource": {
+          "description": "The API resource path to request (e.g. `/system/info`).",
+          "name": "Resource"
+        }
+      },
+      "name": "Send Custom Request"
     }
   }
 }

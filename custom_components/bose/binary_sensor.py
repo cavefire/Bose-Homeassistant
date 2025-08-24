@@ -46,7 +46,7 @@ class BoseBatteryChargingSensor(BoseBaseEntity, BoseBatteryBase, BinarySensorEnt
         # Initialize base entity and battery base
         BoseBaseEntity.__init__(self, speaker)
         BoseBatteryBase.__init__(self, speaker, config_entry, hass)
-        self._attr_name = "Charging State"
+        self._attr_translation_key = "charging_state"
         self._attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
 
         if battery_status is None:

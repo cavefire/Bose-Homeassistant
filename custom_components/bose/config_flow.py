@@ -9,6 +9,7 @@ from homeassistant import config_entries
 import homeassistant.components.zeroconf
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import translation as translation_helper
 
 from .const import _LOGGER, DOMAIN
 
@@ -78,9 +79,19 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Discovery failed", exc_info=e)
                 self.discovered_ips = []
 
-        # Prepare dropdown options
         ip_options = {ip: ip for ip in self.discovered_ips}
-        ip_options["manual"] = "Enter IP Manually"
+        try:
+            translations = await translation_helper.async_get_translations(
+                self.hass, self.hass.config.language, "config", integrations=[DOMAIN]
+            )
+            manual_label = translations.get(
+                f"component.{DOMAIN}.config.step.user.data.manual_ip",
+                "Enter IP Manually",
+            )
+        except (ValueError, RuntimeError):
+            manual_label = "Enter IP Manually"
+
+        ip_options["manual"] = manual_label
 
         # Show the form for input
         data_schema = vol.Schema(
@@ -115,15 +126,22 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
+        try:
+            translations = await translation_helper.async_get_translations(
+                self.hass, self.hass.config.language, "config", integrations=[DOMAIN]
+            )
+            manual_note = translations.get(
+                f"component.{DOMAIN}.config.step.user.data.manual_ip",
+                "Enter the IP address of your Bose device manually if it wasn't discovered.",
+            )
+        except (ValueError, RuntimeError):
+            manual_note = "Enter the IP address of your Bose device manually if it wasn't discovered."
+
         return self.async_show_form(
             step_id="manual_ip",
             data_schema=data_schema,
             errors=errors,
-            description_placeholders={
-                "note": (
-                    "Enter the IP address of your Bose device manually if it wasn't discovered."
-                )
-            },
+            description_placeholders={"note": manual_note},
         )
 
     async def _discover_devices(self):

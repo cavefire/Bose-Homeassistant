@@ -1,0 +1,166 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Gerät ist bereits konfiguriert",
+      "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort.",
+      "connect_failed": "Verbindung zum Lautsprecher fehlgeschlagen. Prüfe, ob der Lautsprecher eingeschaltet und verbunden ist und ob die IP‑Adresse korrekt ist.",
+      "info_failed": "Verbindung zum Gerät hergestellt, aber das Abrufen der Lautsprecherinformationen ist fehlgeschlagen. Prüf die Protokolle für mehr Informationen."
+    },
+    "error": {
+      "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "device": "Wähle dein BOSE‑Gerät",
+          "mail": "E‑Mail‑Adresse deines BOSE‑Kontos",
+          "manual_ip": "IP-Adresse manuell eingeben",
+          "password": "Passwort deines BOSE‑Kontos"
+        }
+      },
+      "manual_ip": {
+        "data": {
+          "manual_ip": "IP-Adresse deines BOSE‑Geräts"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "charging_state": {
+        "name": "Ladezustand"
+      }
+    },
+    "button": {
+      "bluetooth_pairing": {
+        "name": "Bluetooth‑Kopplung"
+      }
+    },
+    "select": {
+      "audio_mode": {
+        "name": "Audiomodus",
+        "state": {
+          "Dialogue": "Dialogmodus",
+          "AI Dialogue Mode": "KI‑Dialogmodus",
+          "Normal Mode": "Normalmodus"
+        }
+      },
+      "cec_settings": {
+        "name": "CEC‑Einstellungen",
+        "state": {
+          "CEC active": "Standardeinstellung (CEC aktiv)",
+          "CEC inactive": "Aus (CEC inaktiv)",
+          "Option 2": "Option 2 (ältere TVs)",
+          "Option 3": "Option 3 (Fernbedinung schaltet TV nicht ein)",
+          "Option 4": "Option 4 (TV kein Ton über Soundbar)",
+          "Option 5": "Option 5 (TV kein Ton)",
+          "Option 6": "Option 6 (Soundbar bleibt an)"
+        }
+      },
+      "dual_mono": {
+        "name": "Dual‑Mono",
+        "state": {
+          "Both": "Beide",
+          "Track 1": "Audiospur 1",
+          "Track 2": "Audiospur 2"
+        }
+      },
+      "rebroadcast_latency": {
+        "name": "Gruppensynchronisation",
+        "state": {
+          "Sync With TV": "Mit Fernsehgerät synchronisieren",
+          "Sync With Group": "Mit Gruppe synchronisieren"
+        }
+      }
+    },
+    "sensor": {
+      "battery_level": {
+        "name": "Batteriestand"
+      },
+      "time_till_empty": {
+        "name": "Zeit bis leer"
+      },
+      "time_till_full": {
+        "name": "Zeit bis voll"
+      }
+    },
+    "switch": {
+      "auto_standby": {
+        "name": "Auto‑Standby"
+      },
+      "subs": {
+        "name": "Subwoofer"
+      },
+      "rears": {
+        "name": "Rücklautsprecher"
+      }
+    },
+    "number": {
+      "bass": {
+        "name": "Bass"
+      },
+      "treble": {
+        "name": "Höhen"
+      },
+      "center": {
+        "name": "Center-Kanal"
+      },
+      "subwooferGain": {
+        "name": "Subwoofer‑Verstärkung"
+      },
+      "height": {
+        "name": "Höhen-Kanal"
+      },
+      "avSync": {
+        "name": "AV‑Sync"
+      }
+    }
+  },
+  "exceptions": {
+    "bluetooth_connect_failed": {
+      "message": "Verbindung zum Bluetooth‑Gerät '{device_name}' ist fehlgeschlagen: {error}"
+    },
+    "bluetooth_device_not_found": {
+      "message": "Bluetooth‑Gerät '{device_name}' wurde nicht gefunden."
+    },
+    "bluetooth_pairing_failed": {
+      "message": "Aktivierung der Bluetooth‑Kopplung fehlgeschlagen: {error}"
+    },
+    "config_entry_not_found": {
+      "message": "Kein gültiger Eintrag für Geräte‑ID gefunden: {device_id}"
+    },
+    "speaker_not_found": {
+      "message": "Kein Lautsprecher für Geräte‑ID gefunden: {device_id}"
+    }
+  },
+  "services": {
+    "remove_bluetooth_device": {
+      "description": "Entferne ein gekoppeltes Bluetooth‑Gerät per MAC‑Adresse.",
+      "fields": {
+        "mac_address": {
+          "description": "Die MAC‑Adresse des zu entfernenden Bluetooth‑Geräts.",
+          "name": "MAC‑Adresse"
+        }
+      },
+      "name": "Bluetooth‑Gerät entfernen"
+    },
+    "send_custom_request": {
+      "description": "Sende eine direkte Anfrage an einen Bose‑Lautsprecher.",
+      "fields": {
+        "body": {
+          "description": "Optionaler JSON‑Body für die Anfrage (wird für POST und PUT verwendet).",
+          "name": "Anfrage‑Body"
+        },
+        "method": {
+          "description": "Die zu verwendende HTTP‑Methode (GET, POST, PUT, DELETE).",
+          "name": "HTTP‑Methode"
+        },
+        "resource": {
+          "description": "Der API‑Ressourcenpfad, der angefragt werden soll (z. B. `/system/info`).",
+          "name": "Ressource"
+        }
+      },
+      "name": "Benutzerdefinierte Anfrage senden"
+    }
+  }
+}

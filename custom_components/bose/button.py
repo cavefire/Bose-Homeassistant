@@ -7,6 +7,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -128,7 +129,6 @@ class BoseBluetoothPairButton(BoseBaseEntity, ButtonEntity):
         BoseBaseEntity.__init__(self, speaker)
         self._speaker = speaker
         self.config_entry = config_entry
-        self._attr_name = "Bluetooth Pairing"
         self._attr_translation_key = "bluetooth_pairing"
         self._attr_icon = "mdi:bluetooth"
         self._attr_entity_category = EntityCategory.CONFIG
@@ -139,4 +139,8 @@ class BoseBluetoothPairButton(BoseBaseEntity, ButtonEntity):
         try:
             await self._speaker.set_bluetooth_sink_pairable()
         except (ConnectionError, TimeoutError) as err:
-            _LOGGER.error("Failed to enable Bluetooth pairing: %s", err)
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="bluetooth_pairing_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err

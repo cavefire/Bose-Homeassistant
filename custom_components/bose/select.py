@@ -70,115 +70,7 @@ async def async_setup_entry(
     async_add_entities(entities, update_before_add=False)
 
 
-class BoseSourceSelect(BoseBaseEntity, SelectEntity):
-    """Representation of a Bose device source selector."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, speaker_info, config_entry, hass: HomeAssistant
-    ) -> None:
-        """Initialize the select entity."""
-        self.speaker = speaker
-        self._attr_name = f"{speaker_info['name']} Source"
-        self.speaker_info = speaker_info
-        self.config_entry = config_entry
-
-        self._available_sources = {
-            "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
-            "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
-            "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
-        }
-
-        self._attr_options = []
-        self._attr_current_option = None
-
-        self.speaker.attach_receiver(self._parse_message)
-
-        hass.async_create_task(self.async_update())
-
-    async def async_select_option(self, option: str) -> None:
-        """Change the source on the speaker."""
-        if option in self._available_sources:
-            source_data = self._available_sources[option]
-            self._parse_now_playing(
-                await self.speaker.set_source(
-                    source_data["source"], source_data["sourceAccount"]
-                )
-            )
-
-    def _parse_message(self, data):
-        """Parse real-time messages from the speaker."""
-        if data.get("header", {}).get("resource") == "/content/nowPlaying":
-            self._parse_now_playing(ContentNowPlaying(data.get("body")))
-
-    def _parse_now_playing(self, data: ContentNowPlaying):
-        """Update the selected source based on now playing data."""
-        container = data.get("container") or {}
-        content_item = container.get("contentItem") or {}
-        source = content_item.get("source")
-        source_account = content_item.get("sourceAccount")
-
-        for source_name, source_data in self._available_sources.items():
-            if source == source_data["source"]:
-                if source_data["source"] in ("SPOTIFY", "AMAZON", "DEEZER"):
-                    if source_account != source_data.get("accountId"):
-                        continue
-                elif source_data["sourceAccount"] != source_account:
-                    continue
-
-                self._attr_current_option = source_name
-                self.async_write_ha_state()
-                return
-
-        self._attr_current_option = (source or "Unknown").capitalize()
-        if self.hass:
-            self.async_write_ha_state()
-
-    async def async_update(self) -> None:
-        """Fetch the current playing source."""
-        sources = await self.speaker.get_sources()
-        for source in sources.get("sources", []):
-            if (
-                (
-                    source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED")
-                    or source.get("accountId", "TV")
-                )
-                and source.get("sourceAccountName", None)
-                and source.get("sourceName", None)
-            ):
-                if source.get("sourceName", None) in (
-                    "AMAZON",
-                    "SPOTIFY",
-                    "DEEZER",
-                ) and source.get("sourceAccountName", None) not in (
-                    "AlexaUserName",
-                    "SpotifyConnectUserName",
-                    "DeezerUserName",
-                ):
-                    source_name = source.get("sourceName") or ""
-                    source_account_name = source.get("sourceAccountName") or ""
-                    account_id = source.get("accountId") or ""
-                    self._available_sources[
-                        f"{source_name.capitalize()}: {source_account_name}"
-                    ] = {
-                        "source": source_name,
-                        "sourceAccount": source_account_name,
-                        "accountId": account_id,
-                    }
-
-                for key, value in self._available_sources.items():
-                    if (
-                        source.get("sourceName", None) == value["source"]
-                        and source.get("sourceAccountName", None)
-                        == value["sourceAccount"]
-                    ):
-                        if key not in self._attr_options:
-                            self._attr_options.append(key)
-
-        now_playing = await self.speaker.get_now_playing()
-        self._parse_now_playing(now_playing)
-
-
-class BoseBaseSelect(SelectEntity):
+class BoseBaseSelect(BoseBaseEntity, SelectEntity):
     """Base class for Bose device selectors."""
 
     _set_method: str = ""
@@ -199,11 +91,12 @@ class BoseBaseSelect(SelectEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize the select entity."""
+        BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
-        self._attr_name = f"{speaker_info['name']} {name_suffix}"
+        self._attr_translation_key = unique_id_suffix.replace("_select", "")
         self._attr_options = []
         self._attr_entity_category = EntityCategory.CONFIG
 
@@ -272,6 +165,7 @@ class BoseAudioSelect(BoseBaseSelect):
             "audio_select",
             hass,
         )
+        self._attr_translation_key = "audio_mode"
 
 
 class BoseDualMonoSelect(BoseBaseSelect):
@@ -297,6 +191,7 @@ class BoseDualMonoSelect(BoseBaseSelect):
             "dual_mono_select",
             hass,
         )
+        self._attr_translation_key = "dual_mono"
 
 
 class BoseRebroadcastLatencyModeSelect(BoseBaseSelect):
@@ -322,6 +217,7 @@ class BoseRebroadcastLatencyModeSelect(BoseBaseSelect):
             "rebroadcast_latency_mode_select",
             hass,
         )
+        self._attr_translation_key = "rebroadcast_latency"
 
 
 class BoseCecSettingsSelect(BoseBaseSelect):
@@ -347,3 +243,4 @@ class BoseCecSettingsSelect(BoseBaseSelect):
             "cec_settings_select",
             hass,
         )
+        self._attr_translation_key = "cec_settings"

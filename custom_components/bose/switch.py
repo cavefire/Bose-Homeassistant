@@ -67,11 +67,13 @@ class BoseAccessorySwitch(BoseBaseEntity, SwitchEntity):
         """Initialize the switch."""
         BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
-        self._attr_name = name
         self._attribute = attribute
-        self._attr_is_on = accessories.get("enabled", {}).get(attribute)
+        self._attr_is_on = (
+            accessories.get("enabled", {}).get(attribute) if accessories else False
+        )
         self.speaker_info = speaker_info
         self.config_entry = config_entry
+        self._attr_translation_key = attribute
         self.icon = "mdi:speaker"
 
         self.speaker.attach_receiver(self._parse_message)
@@ -93,7 +95,8 @@ class BoseAccessorySwitch(BoseBaseEntity, SwitchEntity):
 
     def _parse_accessories(self, data: Accessories):
         """Parse the accessories data."""
-        self._attr_is_on = data.get("enabled").get(self._attribute, False)
+        enabled = data.get("enabled", {}) if data else {}
+        self._attr_is_on = enabled.get(self._attribute, False) if enabled else False
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
@@ -146,11 +149,11 @@ class BoseStandbySettingSwitch(BoseBaseEntity, SwitchEntity):
         """Initialize the switch."""
         BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
-        self._attr_name = "Auto standby"
         self._attr_is_on = None
         self.speaker_info = speaker_info
         self.config_entry = config_entry
         self.icon = "mdi:power-standby"
+        self._attr_translation_key = "auto_standby"
 
         self._attr_entity_category = EntityCategory.CONFIG
 

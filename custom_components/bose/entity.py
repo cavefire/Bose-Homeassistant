@@ -23,15 +23,30 @@ class BoseBaseEntity(Entity):
     @cached_property
     def device_info(self) -> DeviceInfo:
         """Return the device info of the entity."""
-        return {
-            "identifiers": {(DOMAIN, cast(str, self.speaker.get_device_id()))},
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, cast(str, self.speaker.get_device_id()))},
+        )
 
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID for this entity."""
         base_id = cast(str, self.speaker.get_device_id())
-        name_part = (self._attr_name or "").strip()
+
+        if (
+            hasattr(self, "_attr_translation_key")
+            and self._attr_translation_key is not None
+            and self._attr_translation_key.strip()
+        ):
+            name_part = self._attr_translation_key.strip()
+        elif (
+            hasattr(self, "_attr_name")
+            and self._attr_name is not None
+            and self._attr_name.strip()
+        ):
+            name_part = self._attr_name.strip()
+        else:
+            name_part = "error"
+
         if not name_part:
             return base_id
         name_part = name_part.lower().replace(" ", "_")

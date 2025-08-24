@@ -105,10 +105,9 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize the slider."""
-        super().__init__(speaker)
+        BoseBaseEntity.__init__(self, speaker)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
-        self._attr_name = parameter.get("display")
         self._path = parameter.get("path")
         self._option = parameter.get("option")
         self._attr_native_value = None
@@ -119,6 +118,7 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
         self._attr_native_max_value = parameter.get("max")
         self._attr_native_step = parameter.get("step")
         self._attr_icon = "mdi:sine-wave"
+        self._attr_translation_key = self._option
         self._attr_capability_attributes = {
             ATTR_MIN: self._attr_min_value,
             ATTR_MAX: self._attr_max_value,
