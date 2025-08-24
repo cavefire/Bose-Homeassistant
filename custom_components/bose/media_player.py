@@ -159,10 +159,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                     self._attr_state = MediaPlayerState.PAUSED
                 case "BUFFERING":
                     self._attr_state = MediaPlayerState.BUFFERING
-                case "STOPPED":
+                case "STOPPED" | None:
                     self._attr_state = MediaPlayerState.IDLE
-                case None:
-                    self._attr_state = MediaPlayerState.STANDBY
                 case _:
                     _LOGGER.warning("State not implemented: %s", status)
                     self._attr_state = MediaPlayerState.ON
