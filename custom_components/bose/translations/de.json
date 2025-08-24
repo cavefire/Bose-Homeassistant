@@ -36,6 +36,11 @@
         "name": "Bluetooth‑Kopplung"
       }
     },
+    "media_player": {
+      "media_player": {
+        "name": "Media‑Player"
+      }
+    },
     "select": {
       "audio_mode": {
         "name": "Audiomodus",

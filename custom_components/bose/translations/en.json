@@ -10,17 +10,17 @@
             "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
         },
         "step": {
+            "manual_ip": {
+                "data": {
+                    "manual_ip": "IP address of your BOSE device"
+                }
+            },
             "user": {
                 "data": {
                     "device": "Select your BOSE device",
                     "mail": "Email address of your BOSE account",
                     "manual_ip": "Enter IP address manually",
                     "password": "Password of your BOSE account"
-                }
-            },
-            "manual_ip": {
-                "data": {
-                    "manual_ip": "IP address of your BOSE device"
                 }
             }
         }
@@ -36,12 +36,37 @@
                 "name": "Bluetooth Pairing"
             }
         },
+        "media_player": {
+            "media_player": {
+                "name": "Media Player"
+            }
+        },
+        "number": {
+            "avSync": {
+                "name": "AV Sync"
+            },
+            "bass": {
+                "name": "Bass"
+            },
+            "center": {
+                "name": "Center Channel"
+            },
+            "height": {
+                "name": "Height Channel"
+            },
+            "subwooferGain": {
+                "name": "Subwoofer Gain"
+            },
+            "treble": {
+                "name": "Treble"
+            }
+        },
         "select": {
             "audio_mode": {
                 "name": "Audio Mode",
                 "state": {
-                    "Dialogue": "Dialogue Mode",
                     "AI Dialogue Mode": "AI Dialogue Mode",
+                    "Dialogue": "Dialogue Mode",
                     "Normal Mode": "Normal Mode"
                 }
             },
@@ -68,8 +93,8 @@
             "rebroadcast_latency": {
                 "name": "Group Synchronization",
                 "state": {
-                    "Sync With TV": "Sync with TV",
-                    "Sync With Group": "Sync with Group"
+                    "Sync With Group": "Sync with Group",
+                    "Sync With TV": "Sync with TV"
                 }
             }
         },
@@ -88,31 +113,11 @@
             "auto_standby": {
                 "name": "Auto Standby"
             },
-            "subs": {
-                "name": "Subwoofer"
-            },
             "rears": {
                 "name": "Rear Speakers"
-            }
-        },
-        "number": {
-            "bass": {
-                "name": "Bass"
             },
-            "treble": {
-                "name": "Treble"
-            },
-            "center": {
-                "name": "Center Channel"
-            },
-            "subwooferGain": {
-                "name": "Subwoofer Gain"
-            },
-            "height": {
-                "name": "Height Channel"
-            },
-            "avSync": {
-                "name": "AV Sync"
+            "subs": {
+                "name": "Subwoofer"
             }
         }
     },

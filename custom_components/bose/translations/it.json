@@ -36,6 +36,11 @@
         "name": "Accoppiamento Bluetooth"
       }
     },
+    "media_player": {
+      "media_player": {
+        "name": "Lettore multimediale"
+      }
+    },
     "select": {
       "audio_mode": {
         "name": "Modalità audio",

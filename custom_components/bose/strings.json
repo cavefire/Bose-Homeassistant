@@ -36,6 +36,11 @@
         "name": "Bluetooth Pairing"
       }
     },
+    "media_player": {
+      "media_player": {
+        "name": "Media Player"
+      }
+    },
     "select": {
       "audio_mode": {
         "name": "Audio Mode",

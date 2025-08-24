@@ -73,6 +73,11 @@
         }
       }
     },
+    "media_player": {
+      "media_player": {
+        "name": "Reproductor multimedia"
+      }
+    },
     "sensor": {
       "battery_level": {
         "name": "Nivel de batería"

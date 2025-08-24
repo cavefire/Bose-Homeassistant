@@ -14,6 +14,8 @@ from .const import DOMAIN
 class BoseBaseEntity(Entity):
     """Base entity for Bose integration."""
 
+    _cf_unique_id: str | None = None
+
     def __init__(self, speaker: BoseSpeaker) -> None:
         """Initialize the entity."""
         self.speaker = speaker
@@ -33,6 +35,12 @@ class BoseBaseEntity(Entity):
         base_id = cast(str, self.speaker.get_device_id())
 
         if (
+            hasattr(self, "_cf_unique_id")
+            and self._cf_unique_id is not None
+            and self._cf_unique_id.strip()
+        ):
+            name_part = self._cf_unique_id.strip()
+        elif (
             hasattr(self, "_attr_translation_key")
             and self._attr_translation_key is not None
             and self._attr_translation_key.strip()

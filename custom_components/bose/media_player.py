@@ -53,7 +53,6 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
         self.hass = hass
-        self._attr_name = system_info["name"]
         self._device_id = speaker.get_device_id()
         self._is_on = False
         self._attr_state = MediaPlayerState.OFF
@@ -71,6 +70,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._attr_group_members = []
         self._attr_source_list: list[str] = []
         self._active_group_id = None
+        self._attr_translation_key = "media_player"
+        self._cf_unique_id = system_info["name"]
         self._available_sources: dict[str, dict] = {
             "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
