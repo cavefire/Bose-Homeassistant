@@ -1,8 +1,5 @@
 """Support for Bose adjustable sound settings (sliders)."""
 
-from typing import Any
-
-from propcache.api import cached_property
 from pybose.BoseResponse import Audio
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -18,10 +15,10 @@ from homeassistant.components.number import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import _LOGGER, DOMAIN
+from .entity import BoseBaseEntity
 
 # Define adjustable sound parameters
 ADJUSTABLE_PARAMETERS = [
@@ -96,7 +93,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class BoseAudioSlider(NumberEntity):
+class BoseAudioSlider(BoseBaseEntity, NumberEntity):
     """Representation of a Bose audio setting (Bass, Treble, Center, etc.) as a slider."""
 
     def __init__(
@@ -108,7 +105,7 @@ class BoseAudioSlider(NumberEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize the slider."""
-        self.speaker = speaker
+        super().__init__(speaker)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
         self._attr_name = parameter.get("display")
@@ -122,13 +119,15 @@ class BoseAudioSlider(NumberEntity):
         self._attr_native_max_value = parameter.get("max")
         self._attr_native_step = parameter.get("step")
         self._attr_icon = "mdi:sine-wave"
+        self._attr_capability_attributes = {
+            ATTR_MIN: self._attr_min_value,
+            ATTR_MAX: self._attr_max_value,
+            ATTR_STEP: self._attr_step,
+            ATTR_VALUE: self._attr_native_value,
+            ATTR_MODE: NumberMode.SLIDER,
+        }
 
         self._attr_entity_category = EntityCategory.CONFIG
-
-        name_part = (
-            self._attr_name.lower() if self._attr_name is not None else self._option
-        )
-        self._attr_unique_id = f"{config_entry.data['guid']}_{name_part}_slider"
 
         self.speaker.attach_receiver(self._parse_message)
 
@@ -163,21 +162,3 @@ class BoseAudioSlider(NumberEntity):
                 e,
             )
             raise
-
-    @property
-    def capability_attributes(self) -> dict[str, Any]:
-        """Return capability attributes."""
-        return {
-            ATTR_MIN: self._attr_min_value,
-            ATTR_MAX: self._attr_max_value,
-            ATTR_STEP: self._attr_step,
-            ATTR_VALUE: self._attr_native_value,
-            ATTR_MODE: NumberMode.SLIDER,
-        }
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-        }

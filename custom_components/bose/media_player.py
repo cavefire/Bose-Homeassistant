@@ -1,6 +1,5 @@
 """Support for Bose media player."""
 
-from functools import cached_property
 from pybose.BoseResponse import AudioVolume, ContentNowPlaying, SystemInfo
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -11,12 +10,12 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import _LOGGER, DOMAIN
+from .entity import BoseBaseEntity
 
 
 async def async_setup_entry(
@@ -33,7 +32,7 @@ async def async_setup_entry(
     )
 
 
-class BoseMediaPlayer(MediaPlayerEntity):
+class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     """Representation of a Bose speaker as a media player."""
 
     def __init__(
@@ -43,6 +42,7 @@ class BoseMediaPlayer(MediaPlayerEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize the Bose media player."""
+        BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
         self._attr_name = system_info["name"]
         self._device_id = speaker.get_device_id()
@@ -60,15 +60,13 @@ class BoseMediaPlayer(MediaPlayerEntity):
         self._attr_media_position_updated_at = None
         self._now_playing_result = None  # type: ignore
         self._attr_group_members = []
+        self._attr_source_list: list[str] = []
         self._active_group_id = None
-        # Source handling (moved from separate select entity)
-        # Mapping of human readable source name -> source payload
         self._available_sources: dict[str, dict] = {
             "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
         }
-        self._attr_source_list: list[str] = []
 
         speaker.attach_receiver(self.parse_message)
 
@@ -365,58 +363,50 @@ class BoseMediaPlayer(MediaPlayerEntity):
             )
 
     @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return f"{self._device_id}-media"
-
-    @property
     def supported_features(self) -> MediaPlayerEntityFeature:
         """Return the features supported by this media player."""
-        if self._now_playing_result is None:
+        now = self._now_playing_result or {}
+
+        def _can(key: str) -> bool:
+            if isinstance(now, dict):
+                state = now.get("state") or {}
+                return bool(state.get(key, False))
+
+            state = getattr(now, "state", None)
+            if isinstance(state, dict):
+                return bool(state.get(key, False))
+
+            get_fn = getattr(now, "get", None)
+            if callable(get_fn):
+                try:
+                    state = get_fn("state", {})
+                except (AttributeError, TypeError):
+                    return False
+                if isinstance(state, dict):
+                    return bool(state.get(key, False))
+                return False
+
+            return bool(getattr(state, key, False))
+
+        if not now:
             return MediaPlayerEntityFeature.PLAY
+
         return (
             MediaPlayerEntityFeature.TURN_OFF
             | MediaPlayerEntityFeature.TURN_ON
-            | (
-                MediaPlayerEntityFeature.NEXT_TRACK
-                if self._now_playing_result.get("state", {}).get("canSkipNext", False)
-                else 0
-            )
-            | (
-                MediaPlayerEntityFeature.PAUSE
-                if self._now_playing_result.get("state", {}).get("canPause", False)
-                else 0
-            )
+            | (MediaPlayerEntityFeature.NEXT_TRACK if _can("canSkipNext") else 0)
+            | (MediaPlayerEntityFeature.PAUSE if _can("canPause") else 0)
             | MediaPlayerEntityFeature.PLAY
             | (
                 MediaPlayerEntityFeature.PREVIOUS_TRACK
-                if self._now_playing_result.get("state", {}).get(
-                    "canSkipPrevious", False
-                )
+                if _can("canSkipPrevious")
                 else 0
             )
-            | (
-                MediaPlayerEntityFeature.SEEK
-                if self._now_playing_result.get("state", {}).get("canSeek", False)
-                else 0
-            )
+            | (MediaPlayerEntityFeature.SEEK if _can("canSeek") else 0)
             | MediaPlayerEntityFeature.VOLUME_SET
             | MediaPlayerEntityFeature.VOLUME_STEP
             | MediaPlayerEntityFeature.VOLUME_MUTE
-            | (
-                MediaPlayerEntityFeature.STOP
-                if self._now_playing_result.get("state", {}).get("canStop", False)
-                else 0
-            )
+            | (MediaPlayerEntityFeature.STOP if _can("canStop") else 0)
             | MediaPlayerEntityFeature.GROUPING
             | MediaPlayerEntityFeature.SELECT_SOURCE
         )
-
-    @cached_property
-    def device_info(self) -> DeviceInfo:
-        """Return device information for Home Assistant integration."""
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},  # pyright: ignore[reportReturnType]
-            "manufacturer": "Bose",
-            "name": self._attr_name,
-        }

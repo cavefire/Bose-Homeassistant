@@ -13,10 +13,10 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
+from .entity import BoseBaseEntity
 
 HUMINZED_OPTIONS = {
     # Audio Mode
@@ -70,7 +70,7 @@ async def async_setup_entry(
     async_add_entities(entities, update_before_add=False)
 
 
-class BoseSourceSelect(SelectEntity):
+class BoseSourceSelect(BoseBaseEntity, SelectEntity):
     """Representation of a Bose device source selector."""
 
     def __init__(
@@ -79,7 +79,6 @@ class BoseSourceSelect(SelectEntity):
         """Initialize the select entity."""
         self.speaker = speaker
         self._attr_name = f"{speaker_info['name']} Source"
-        self._attr_unique_id = f"{config_entry.data['guid']}_source_select"
         self.speaker_info = speaker_info
         self.config_entry = config_entry
 
@@ -113,34 +112,24 @@ class BoseSourceSelect(SelectEntity):
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         """Update the selected source based on now playing data."""
+        container = data.get("container") or {}
+        content_item = container.get("contentItem") or {}
+        source = content_item.get("source")
+        source_account = content_item.get("sourceAccount")
+
         for source_name, source_data in self._available_sources.items():
-            if (
-                data.get("container", {}).get("contentItem", {}).get("source")
-                == source_data["source"]
-            ):
+            if source == source_data["source"]:
                 if source_data["source"] in ("SPOTIFY", "AMAZON", "DEEZER"):
-                    if (
-                        data.get("container", {})
-                        .get("contentItem", {})
-                        .get("sourceAccount")
-                        != source_data["accountId"]
-                    ):
+                    if source_account != source_data.get("accountId"):
                         continue
-                elif source_data["sourceAccount"] != data.get("container", {}).get(
-                    "contentItem", {}
-                ).get("sourceAccount"):
+                elif source_data["sourceAccount"] != source_account:
                     continue
 
                 self._attr_current_option = source_name
                 self.async_write_ha_state()
                 return
 
-        self._attr_current_option = (
-            data.get("container", {})
-            .get("contentItem", {})
-            .get("source", "Unknown")
-            .capitalize()
-        )
+        self._attr_current_option = (source or "Unknown").capitalize()
         if self.hass:
             self.async_write_ha_state()
 
@@ -165,12 +154,15 @@ class BoseSourceSelect(SelectEntity):
                     "SpotifyConnectUserName",
                     "DeezerUserName",
                 ):
+                    source_name = source.get("sourceName") or ""
+                    source_account_name = source.get("sourceAccountName") or ""
+                    account_id = source.get("accountId") or ""
                     self._available_sources[
-                        f"{source.get('sourceName', None).capitalize()}: {source.get('sourceAccountName', None)}"
+                        f"{source_name.capitalize()}: {source_account_name}"
                     ] = {
-                        "source": source.get("sourceName", None),
-                        "sourceAccount": source.get("sourceAccountName", None),
-                        "accountId": source.get("accountId", None),
+                        "source": source_name,
+                        "sourceAccount": source_account_name,
+                        "accountId": account_id,
                     }
 
                 for key, value in self._available_sources.items():
@@ -185,21 +177,16 @@ class BoseSourceSelect(SelectEntity):
         now_playing = await self.speaker.get_now_playing()
         self._parse_now_playing(now_playing)
 
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return self._attr_unique_id
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-        }
-
 
 class BoseBaseSelect(SelectEntity):
     """Base class for Bose device selectors."""
+
+    _set_method: str = ""
+    _get_method: str = ""
+    _value_key: str = ""
+    _supported_key: str = ""
+    _resource_path: str = ""
+    _mode_class = object
 
     def __init__(
         self,
@@ -217,9 +204,7 @@ class BoseBaseSelect(SelectEntity):
         self.config_entry = config_entry
 
         self._attr_name = f"{speaker_info['name']} {name_suffix}"
-        self._attr_unique_id = f"{config_entry.data['guid']}_{unique_id_suffix}"
         self._attr_options = []
-        self._selected_audio = None
         self._attr_entity_category = EntityCategory.CONFIG
 
         self.speaker.attach_receiver(self._parse_message)
@@ -237,40 +222,31 @@ class BoseBaseSelect(SelectEntity):
         await getattr(self.speaker, self._set_method)(option)
 
     def _parse_audio_mode(self, data, mode_type):
-        self._selected_audio = data.get(self._value_key)
+        selected_audio = data.get(self._value_key)
+        supported = data.get("properties", {}).get(self._supported_key, [])
         self._attr_options = [
-            HUMINZED_OPTIONS.get(option, option)
-            for option in data.get("properties", {}).get(self._supported_key, [])
+            str(HUMINZED_OPTIONS.get(option, option))
+            for option in supported
+            if option is not None
         ]
+
+        if HUMINZED_OPTIONS.get(selected_audio):
+            self._attr_current_option = HUMINZED_OPTIONS.get(selected_audio)
+        else:
+            self._attr_current_option = selected_audio
+
         if self.hass:
             self.async_write_ha_state()
 
     def _parse_message(self, data):
         """Parse real-time messages from the speaker."""
         if data.get("header", {}).get("resource") == self._resource_path:
-            self._parse_audio_mode(self._mode_class(data.get("body")), self._mode_class)
+            self._parse_audio_mode(data.get("body", {}), self._mode_class)
 
     async def async_update(self) -> None:
         """Fetch the current audio mode."""
         data = await getattr(self.speaker, self._get_method)()
         self._parse_audio_mode(data, self._mode_class)
-
-    @property
-    def current_option(self) -> str | None:
-        """Return the currently selected option."""
-        if HUMINZED_OPTIONS.get(self._selected_audio):
-            return HUMINZED_OPTIONS.get(self._selected_audio)
-        return self._selected_audio
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return self._attr_unique_id
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
 
 
 class BoseAudioSelect(BoseBaseSelect):

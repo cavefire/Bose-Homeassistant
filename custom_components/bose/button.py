@@ -8,11 +8,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import refresh_token
 from .const import _LOGGER, DOMAIN
+from .entity import BoseBaseEntity
 
 
 async def async_setup_entry(
@@ -27,11 +27,10 @@ async def async_setup_entry(
         (await speaker.get_product_settings()).get("presets", None).get("presets", [])
     )
 
-    entities = [
+    entities: list[BoseBaseEntity] = [
         BosePresetbutton(speaker, config_entry, preset, presetNum)
         for presetNum, preset in presets.items()
     ]
-    entities.append(BoseRefreshTokenButton(speaker, config_entry, hass))
 
     # Add button entity with device info
     async_add_entities(
@@ -47,8 +46,10 @@ async def async_setup_entry(
 
             processed_presets = []
             for entity in entities:
-                entity.update_preset(presets.get(entity.preset_num))
-                processed_presets.append(entity.preset_num)
+                # Only BosePresetbutton instances implement update_preset
+                if isinstance(entity, BosePresetbutton):
+                    entity.update_preset(presets.get(entity.preset_num))
+                    processed_presets.append(entity.preset_num)
 
             for presetNum, preset in presets.items():
                 if presetNum not in processed_presets:
@@ -62,7 +63,7 @@ async def async_setup_entry(
     speaker.attach_receiver(parse_message)
 
 
-class BosePresetbutton(ButtonEntity):
+class BosePresetbutton(BoseBaseEntity, ButtonEntity):
     """Generic accessory button for Bose speakers."""
 
     def __init__(
@@ -70,18 +71,17 @@ class BosePresetbutton(ButtonEntity):
         speaker: BoseSpeaker,
         config_entry,
         preset: Preset,
-        presetNum: int,
+        presetNum: str,
     ) -> None:
         """Initialize the button."""
+
+        BoseBaseEntity.__init__(self, speaker)
         self._speaker = speaker
         self._attr_name = f"Preset {presetNum}"
         self._preset = preset
         self.preset_num = presetNum
         self.config_entry = config_entry
-        self.entity_id = (
-            f"{DOMAIN}.{self.config_entry.data['name']}_preset_{self.preset_num}"
-        )
-        self.icon = "mdi:folder-play"
+        self._attr_icon = "mdi:folder-play"
         self.update_preset(preset)
 
     def update_preset(self, preset: Preset) -> None:
@@ -111,51 +111,3 @@ class BosePresetbutton(ButtonEntity):
     async def async_update(self) -> None:
         """Update the button state."""
         _LOGGER.info("Updating button %s", self._attr_name)
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return f"{self.config_entry.data['guid']}_{self.preset_num}_button"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self.config_entry.data["guid"])},
-        }
-
-
-class BoseRefreshTokenButton(ButtonEntity):
-    """Button to refresh the token."""
-
-    def __init__(
-        self, speaker: BoseSpeaker, config_entry: ConfigEntry, hass: HomeAssistant
-    ) -> None:
-        """Initialize the button."""
-        self._speaker = speaker
-        self._attr_name = "Refresh Auth (JWT) Token"
-        self.entity_id = f"{DOMAIN}.refresh_token_button"
-        self.icon = "mdi:refresh"
-        self.entity_category = EntityCategory.DIAGNOSTIC
-        self._config_entry = config_entry
-        self.hass = hass
-
-    async def async_press(self, **kwargs) -> None:
-        """Press the button."""
-        _LOGGER.info("Refreshing auth token")
-
-        self.hass.async_create_task(
-            refresh_token(self.hass, self._config_entry, self._speaker._bose_auth)  # noqa: SLF001
-        )
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return f"{self._config_entry.data['guid']}_jwt_button"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {
-            "identifiers": {(DOMAIN, self._config_entry.data["guid"])},
-        }

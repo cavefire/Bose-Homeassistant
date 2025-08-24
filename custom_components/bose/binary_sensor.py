@@ -13,6 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .bose.battery import BoseBatteryBase
 from .const import DOMAIN
+from .entity import BoseBaseEntity
 
 
 async def async_setup_entry(
@@ -31,7 +32,7 @@ async def async_setup_entry(
         )
 
 
-class BoseBatteryChargingSensor(BoseBatteryBase, BinarySensorEntity):
+class BoseBatteryChargingSensor(BoseBaseEntity, BoseBatteryBase, BinarySensorEntity):
     """Sensor for battery charging state."""
 
     def __init__(
@@ -42,9 +43,10 @@ class BoseBatteryChargingSensor(BoseBatteryBase, BinarySensorEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize charging state sensor."""
-        super().__init__(speaker, config_entry, hass)
-        self._attr_name = f"{config_entry.data['name']} Charging State"
-        self._attr_unique_id = f"{config_entry.data['guid']}_charging_state"
+        # Initialize base entity and battery base
+        BoseBaseEntity.__init__(self, speaker)
+        BoseBatteryBase.__init__(self, speaker, config_entry, hass)
+        self._attr_name = "Charging State"
         self._attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
 
         if battery_status is None:

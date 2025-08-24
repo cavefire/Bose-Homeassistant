@@ -9,10 +9,10 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import _LOGGER, DOMAIN
+from .entity import BoseBaseEntity
 
 
 async def async_setup_entry(
@@ -27,9 +27,11 @@ async def async_setup_entry(
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
     accessories = hass.data[DOMAIN][config_entry.entry_id]["accessories"]
 
-    entities = []
+    entities: list[SwitchEntity] = []
     if speaker.has_capability("/system/power/timeouts"):
-        entities = [BoseStandbySettingSwitch(speaker, system_info, config_entry, hass)]
+        entities.append(
+            BoseStandbySettingSwitch(speaker, system_info, config_entry, hass)
+        )
     else:
         _LOGGER.debug("Speaker does not support system timeouts")
 
@@ -50,7 +52,7 @@ async def async_setup_entry(
     )
 
 
-class BoseAccessorySwitch(SwitchEntity):
+class BoseAccessorySwitch(BoseBaseEntity, SwitchEntity):
     """Generic accessory switch for Bose speakers."""
 
     def __init__(
@@ -63,6 +65,7 @@ class BoseAccessorySwitch(SwitchEntity):
         attribute: str,
     ) -> None:
         """Initialize the switch."""
+        BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
         self._attr_name = name
         self._attribute = attribute
@@ -97,16 +100,6 @@ class BoseAccessorySwitch(SwitchEntity):
         """Update the switch state."""
         self._parse_accessories(await self.speaker.get_accessories())
 
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return f"{self.config_entry.data['guid']}_{self._attribute}_switch"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
-
 
 class BoseSubwooferSwitch(BoseAccessorySwitch):
     """Switch to turn on/off subwoofers."""
@@ -140,7 +133,7 @@ class BoseRearSpeakerSwitch(BoseAccessorySwitch):
         )
 
 
-class BoseStandbySettingSwitch(SwitchEntity):
+class BoseStandbySettingSwitch(BoseBaseEntity, SwitchEntity):
     """Switch to turn on/off standby setting."""
 
     def __init__(
@@ -151,6 +144,7 @@ class BoseStandbySettingSwitch(SwitchEntity):
         hass: HomeAssistant,
     ) -> None:
         """Initialize the switch."""
+        BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
         self._attr_name = "Auto standby"
         self._attr_is_on = None
@@ -186,13 +180,3 @@ class BoseStandbySettingSwitch(SwitchEntity):
             "noAudio", False
         )
         self.async_write_ha_state()
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID for this entity."""
-        return f"{self.config_entry.data['guid']}_standby_switch"
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information about this entity."""
-        return {"identifiers": {(DOMAIN, self.config_entry.data["guid"])}}
