@@ -57,7 +57,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._is_on = False
         self._attr_state = MediaPlayerState.OFF
         self._attr_volume_level = 0.5
-        self._attr_muted = False
+        self._attr_is_volume_muted = False
         self._attr_source = None
         self._attr_media_image_url = None
         self._attr_media_title = None
@@ -147,7 +147,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     def _parse_audio_volume(self, data: AudioVolume):
         self._attr_volume_level = data.get("value", 0) / 100
-        self._attr_muted = data.get("muted")
+        self._attr_is_volume_muted = data.get("muted")
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
@@ -442,7 +442,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     async def async_mute_volume(self, mute: bool) -> None:
         """Send mute command."""
         await self.speaker.set_audio_volume_muted(mute)
-        self._attr_muted = mute
+        self._attr_is_volume_muted = mute
         self.async_write_ha_state()
 
     async def async_media_play(self) -> None:
