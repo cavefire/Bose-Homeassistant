@@ -92,9 +92,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             self._parse_audio_volume(AudioVolume(body))
         elif resource == "/system/power/control":
             self._is_on = body.get("power") == "ON"
-            self._attr_state = (
-                MediaPlayerState.OFF if not self._is_on else self._attr_state
-            )
+            if not self._is_on:
+                self._attr_state = MediaPlayerState.OFF
         elif resource == "/content/nowPlaying":
             self._parse_now_playing(ContentNowPlaying(body))
         elif resource == "/grouping/activeGroups":
@@ -160,7 +159,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 case "BUFFERING":
                     self._attr_state = MediaPlayerState.BUFFERING
                 case "STOPPED" | None:
-                    self._attr_state = MediaPlayerState.IDLE
+                    if self._is_on:
+                        self._attr_state = MediaPlayerState.IDLE
+                    else:
+                        self._attr_state = MediaPlayerState.OFF
                 case _:
                     _LOGGER.warning("State not implemented: %s", status)
                     self._attr_state = MediaPlayerState.ON
