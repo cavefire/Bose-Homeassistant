@@ -83,6 +83,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         hass.async_create_task(self.async_update())
 
+        if "media_entities" not in hass.data[DOMAIN]:
+            hass.data[DOMAIN]["media_entities"] = {}
+        hass.data[DOMAIN]["media_entities"][system_info.get("guid")] = self
+
     def parse_message(self, data):
         """Parse the message from the speaker."""
 
@@ -130,15 +134,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             key=lambda guid: guid == active_group.get("groupMasterId"), reverse=True
         )
 
-        registry = er.async_get(self.hass)
-
         entity_ids = [
-            registry.async_get_entity_id(
-                "media_player",
-                DOMAIN,
-                f"{guid}-media",
-            )
-            for guid in guids
+            self.hass.data[DOMAIN]["media_entities"][guid].entity_id for guid in guids
         ]
 
         self._attr_group_members = entity_ids
