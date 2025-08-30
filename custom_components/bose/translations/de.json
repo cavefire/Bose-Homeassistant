@@ -145,6 +145,15 @@
     },
     "source_not_configured": {
       "message": "Quelle nicht konfiguriert."
+    },
+    "chromecast_not_available": {
+      "message": "Chromecast-Funktionalität für Lautsprecher unter {speaker_ip} nicht verfügbar"
+    },
+    "connection_error": {
+      "message": "Verbindungsfehler während der Operation: {error}"
+    },
+    "media_playback_failed": {
+      "message": "Wiedergabe des Mediums {media_id} fehlgeschlagen: {error}"
     }
   },
   "services": {

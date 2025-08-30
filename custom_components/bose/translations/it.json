@@ -145,6 +145,15 @@
     },
     "source_not_configured": {
       "message": "Sorgente non configurata."
+    },
+    "chromecast_not_available": {
+      "message": "Funzionalità Chromecast non disponibile per l'altoparlante su {speaker_ip}"
+    },
+    "connection_error": {
+      "message": "Errore di connessione durante l'operazione: {error}"
+    },
+    "media_playback_failed": {
+      "message": "Riproduzione del media {media_id} non riuscita: {error}"
     }
   },
   "services": {

@@ -131,8 +131,26 @@
     "bluetooth_pairing_failed": {
       "message": "Failed to enable Bluetooth pairing: {error}"
     },
+    "chromecast_not_available": {
+      "message": "Chromecast functionality not available for speaker at {speaker_ip}"
+    },
     "config_entry_not_found": {
       "message": "No valid entry found for device ID: {device_id}"
+    },
+    "connection_error": {
+      "message": "Connection error during operation: {error}"
+    },
+    "media_playback_failed": {
+      "message": "Failed to play media {media_id}: {error}"
+    },
+    "not_in_group": {
+      "message": "Entity {entity_id} is not in a group"
+    },
+    "master_not_found": {
+      "message": "Master entity {entity_id} not found"
+    },
+    "source_not_configured": {
+      "message": "Source {source_name} is not properly configured"
     },
     "speaker_not_found": {
       "message": "No speaker found for device ID: {device_id}"

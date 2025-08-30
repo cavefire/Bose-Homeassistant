@@ -1,5 +1,13 @@
 """Support for Bose media player."""
 
+import asyncio
+import functools
+from typing import Any
+
+import pychromecast
+from pychromecast import discovery
+from pychromecast.discovery import CastBrowser, SimpleCastListener
+
 from pybose.BoseResponse import (
     AudioVolume,
     BluetoothSinkList,
@@ -10,10 +18,14 @@ from pybose.BoseResponse import (
 )
 from pybose.BoseSpeaker import BoseSpeaker
 
+from homeassistant.components import media_source, zeroconf
 from homeassistant.components.media_player import (
+    BrowseMedia,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    MediaType,
+    async_process_play_media_url,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -78,6 +90,15 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
         }
         self._bluetooth_devices: dict[str, dict] = {}
+        self._chromecast_device = None
+        self._media_controller = None
+        self._speaker_ip = None
+
+        config_data = hass.data[DOMAIN].get(
+            hass.config_entries.async_entries(DOMAIN)[0].entry_id, {}
+        )
+        if "config" in config_data and "ip" in config_data["config"]:
+            self._speaker_ip = config_data["config"]["ip"]
 
         speaker.attach_receiver(self.parse_message)
 
@@ -86,6 +107,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         if "media_entities" not in hass.data[DOMAIN]:
             hass.data[DOMAIN]["media_entities"] = {}
         hass.data[DOMAIN]["media_entities"][system_info.get("guid")] = self
+
+        hass.async_create_task(self._async_setup_chromecast())
 
     def parse_message(self, data):
         """Parse the message from the speaker."""
@@ -168,6 +191,9 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         self._attr_source = data.get("source", {}).get("sourceDisplayName", None)
 
+        if  self._attr_source == "Chromecast Built-in":
+           return
+        
         self._attr_media_title = data.get("metadata", {}).get("trackName")
         self._attr_media_artist = data.get("metadata", {}).get("artist")
         self._attr_media_album_name = data.get("metadata", {}).get("album")
@@ -482,6 +508,187 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         await self.speaker.seek(position)
         self.async_write_ha_state()
 
+    async def async_play_media(
+        self, media_type: MediaType | str, media_id: str, **kwargs: Any
+    ) -> None:
+        """Play media using Chromecast functionality."""
+        # Handle media_source
+        if media_source.is_media_source_id(media_id):
+            play_item = await media_source.async_resolve_media(
+                self.hass, media_id, self.entity_id
+            )
+            media_id = play_item.url
+
+        # Process the media URL for local serving if needed
+        media_id = async_process_play_media_url(self.hass, media_id)
+
+        _LOGGER.info(
+            "Playing media via Chromecast: type=%s, url=%s", media_type, media_id
+        )
+
+        try:
+            # Check if Chromecast device is available
+            if self._chromecast_device is None or self._media_controller is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="chromecast_not_available",
+                    translation_placeholders={"speaker_ip": str(self._speaker_ip)},
+                )
+
+            idle_tries = 0
+            while(self._chromecast_device.is_idle and idle_tries < 5):
+                await asyncio.sleep(1)
+                idle_tries += 1
+                
+            if self._chromecast_device.is_idle:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="chromecast_not_available",
+                    translation_placeholders={"speaker_ip": str(self._speaker_ip)},
+                )
+
+            content_type = self._get_content_type(media_type, media_id)
+            await self.hass.async_add_executor_job(
+                self._media_controller.play_media, media_id, content_type
+            )
+
+            self._attr_media_title = (
+                media_id.split("/")[-1] if "/" in media_id else media_id
+            )
+            self._attr_source = "Chromecast built-in"
+            self._attr_state = MediaPlayerState.PLAYING
+            self.async_write_ha_state()
+
+            _LOGGER.info("Successfully started Chromecast playback for %s", media_id)
+
+        except Exception as err:
+            _LOGGER.error("Failed to play media via Chromecast: %s", err)
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="media_playback_failed",
+                translation_placeholders={
+                    "media_id": media_id,
+                    "error": str(err),
+                },
+            ) from err
+
+    async def _async_setup_chromecast(self, secondTry = False) -> None:
+        """Set up Chromecast device for media playback."""
+        if self._speaker_ip is None:
+            _LOGGER.warning("No speaker IP available for Chromecast setup")
+            return
+
+        try:
+            _LOGGER.debug("Discovering Chromecast on %s", self._speaker_ip)
+
+            # Get Home Assistant's shared Zeroconf instance
+            zc = await zeroconf.async_get_instance(self.hass)
+
+            # Create a simple cast listener to handle discovered devices
+            def cast_listener(uuid, service):
+                """Handle discovered cast device."""
+                if uuid in browser.devices:
+                    device = browser.devices[uuid]
+                    if device.host == self._speaker_ip:
+                        _LOGGER.debug("Found matching Chromecast device: %s", device.friendly_name)
+
+            # Create browser and start discovery using shared Zeroconf instance
+            browser = await self.hass.async_add_executor_job(
+                CastBrowser,
+                SimpleCastListener(cast_listener),
+                zc
+            )
+            
+            await self.hass.async_add_executor_job(browser.start_discovery)
+            
+            # Wait a bit for discovery to find devices
+            await asyncio.sleep(3)
+
+            # Look for a Chromecast device on the same IP as our Bose speaker
+            chromecast_found = False
+            for uuid, device in browser.devices.items():
+                if device.host == self._speaker_ip:
+                    # Create chromecast instance
+                    self._chromecast_device = await self.hass.async_add_executor_job(
+                        pychromecast.get_chromecast_from_cast_info,
+                        device,
+                        zc
+                    )
+                    self._media_controller = self._chromecast_device.media_controller
+                    _LOGGER.info(
+                        "Found Chromecast device at %s: %s",
+                        self._speaker_ip,
+                        device.friendly_name,
+                    )
+                    chromecast_found = True
+                    break
+
+            if self._chromecast_device:
+                await self.hass.async_add_executor_job(self._chromecast_device.wait)
+                _LOGGER.debug("Chromecast device connected successfully")
+            elif not chromecast_found:
+                _LOGGER.debug("Chromecast device not found for Bose speaker at %s", self._speaker_ip)
+                if not secondTry:
+                    await self.speaker.set_chromecast(True)
+                    # Stop discovery before retrying
+                    await self.hass.async_add_executor_job(discovery.stop_discovery, browser)
+                    await self._async_setup_chromecast(True)
+                    return
+                else:
+                    _LOGGER.warning("No Chromecast device found for Bose speaker after enabling Chromecast")
+                
+            # Stop discovery
+            await self.hass.async_add_executor_job(discovery.stop_discovery, browser)
+
+        except (ConnectionError, TimeoutError, OSError, AttributeError) as err:
+            _LOGGER.error("Error setting up Chromecast: %s", err)
+
+    def _get_content_type(self, media_type: MediaType | str, media_url: str) -> str:
+        """Determine the appropriate content type for Chromecast."""
+        # If media_type is already specific, use it
+        if isinstance(media_type, str) and "/" in media_type:
+            return media_type
+
+        # Determine content type from URL extension or media_type
+        media_url_lower = media_url.lower()
+
+        if media_type == MediaType.MUSIC or any(
+            media_url_lower.endswith(ext)
+            for ext in [".mp3", ".wav", ".flac", ".m4a", ".aac"]
+        ):
+            return "audio/mpeg"
+
+        if media_type == MediaType.VIDEO or any(
+            media_url_lower.endswith(ext) for ext in [".mp4", ".avi", ".mkv", ".webm"]
+        ):
+            return "video/mp4"
+
+        if media_url_lower.endswith(".m3u8"):
+            return "application/x-mpegURL"
+
+        if media_url_lower.endswith(".pls"):
+            return "audio/x-scpls"
+
+        # Default to audio for unknown types
+        return "audio/mpeg"
+
+    async def async_browse_media(
+        self,
+        media_content_type: MediaType | str | None = None,
+        media_content_id: str | None = None,
+    ) -> BrowseMedia:
+        """Implement the websocket media browsing helper."""
+        return await media_source.async_browse_media(
+            self.hass,
+            media_content_id,
+            # Filter to only show audio content that the speaker can likely play
+            content_filter=lambda item: (
+                item.media_content_type.startswith("audio/")
+                or item.media_content_type == MediaType.MUSIC
+                or item.media_class in {"music", "podcast", "audiobook"}
+            ),
+        )
+
     async def async_join_players(self, group_members: list[str]) -> None:
         """Join `group_members` as a player group with the current player."""
         registry = er.async_get(self.hass)
@@ -546,6 +753,15 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             )
 
     @property
+    def source_list(self) -> list[str] | None: # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return the list of available input sources."""
+        
+        if(self._attr_source == "Chromecast built-in"):
+            return ["Chromecast built-in"] + self._attr_source_list
+        
+        return self._attr_source_list
+
+    @property
     def supported_features(self) -> MediaPlayerEntityFeature:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the features supported by this media player."""
         now = self._now_playing_result or {}
@@ -592,4 +808,5 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             | (MediaPlayerEntityFeature.STOP if _can("canStop") else 0)
             | MediaPlayerEntityFeature.GROUPING
             | MediaPlayerEntityFeature.SELECT_SOURCE
+            | ((MediaPlayerEntityFeature.PLAY_MEDIA | MediaPlayerEntityFeature.BROWSE_MEDIA) if self._chromecast_device is not None else 0)
         )
