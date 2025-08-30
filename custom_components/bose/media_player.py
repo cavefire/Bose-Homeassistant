@@ -66,7 +66,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._attr_media_duration = None
         self._attr_media_position = None
         self._attr_media_position_updated_at = None
-        self._now_playing_result = None  # type: ignore
+        self._now_playing_result = ContentNowPlaying({})
         self._attr_group_members = []
         self._attr_source_list: list[str] = []
         self._active_group_id = None
@@ -276,7 +276,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     def _update_bluetooth_source_list(self) -> None:
         """Update the source list with Bluetooth devices."""
         # Remove old Bluetooth sources
-        self._attr_source_list = [
+        self._attr_source_list = [  # pyright: ignore[reportIncompatibleVariableOverride]
             source
             for source in self._attr_source_list
             if not source.startswith("Bluetooth:")
@@ -297,15 +297,18 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             return
 
         active_device = None
+        ad = None
         if isinstance(status, dict):
-            active_device = status.get("activeDevice")
+            ad = status.get("activeDevice")
         else:
             get_fn = getattr(status, "get", None)
             if callable(get_fn):
                 try:
-                    active_device = get_fn("activeDevice")
-                except Exception:
-                    active_device = None
+                    ad = get_fn("activeDevice")
+                except Exception:  # noqa: BLE001
+                    ad = None
+
+        active_device = ad if isinstance(ad, str) else None
 
         if active_device and active_device in self._bluetooth_devices:
             bluetooth_device = self._bluetooth_devices[active_device]
@@ -407,8 +410,16 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             return
 
         source_data = self._available_sources[source]
+
+        if not source_data.get("source") or not source_data.get("sourceAccount"):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="source_not_configured",
+                translation_placeholders={"source_name": source},
+            )
+
         result = await self.speaker.set_source(
-            source_data.get("source"), source_data.get("sourceAccount")
+            source_data.get("source", ""), source_data.get("sourceAccount", "")
         )
         self._parse_now_playing(ContentNowPlaying(result))
 
@@ -484,14 +495,18 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         ]
 
         if self._active_group_id is not None:
-            if self._attr_group_members[0] != self.entity_id:
+            master_id = (
+                self._attr_group_members[0] if self._attr_group_members else None
+            )
+
+            if master_id is not None and master_id != self.entity_id:
                 _LOGGER.warning(
                     "Speakers can only join the master of the group, which is %s",
-                    self._attr_group_members[0],
+                    master_id,
                 )
                 _LOGGER.warning("Running action on master speaker")
                 master: BoseSpeaker = self.hass.data[DOMAIN][
-                    registry.async_get(self._attr_group_members[0]).config_entry_id
+                    registry.async_get(master_id).config_entry_id
                 ]["speaker"]
                 await master.add_to_active_group(self._active_group_id, guids)
                 return
@@ -504,12 +519,25 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     async def async_unjoin_player(self) -> None:
         """Unjoin the player from a group."""
 
+        if not self._attr_group_members:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="not_in_group",
+                translation_placeholders={"entity_id": self.entity_id},
+            )
+
         master_entity_id = self._attr_group_members[0]
 
         if self.entity_id == master_entity_id:
             await self.speaker.stop_active_groups()
         else:
             master_entity = er.async_get(self.hass).async_get(master_entity_id)
+            if master_entity is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="master_not_found",
+                    translation_placeholders={"entity_id": master_entity_id},
+                )
             master_speaker = self.hass.data[DOMAIN][master_entity.config_entry_id][
                 "speaker"
             ]
@@ -518,7 +546,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             )
 
     @property
-    def supported_features(self) -> MediaPlayerEntityFeature:
+    def supported_features(self) -> MediaPlayerEntityFeature:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the features supported by this media player."""
         now = self._now_playing_result or {}
 

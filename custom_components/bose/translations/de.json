@@ -136,6 +136,15 @@
     },
     "speaker_not_found": {
       "message": "Kein Lautsprecher für Geräte‑ID gefunden: {device_id}"
+    },
+    "not_in_group": {
+      "message": "Lautsprecher ist keiner Gruppe zugeordnet."
+    },
+    "master_not_found": {
+      "message": "Gruppenmaster nicht gefunden."
+    },
+    "source_not_configured": {
+      "message": "Quelle nicht konfiguriert."
     }
   },
   "services": {

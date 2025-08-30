@@ -136,6 +136,15 @@
     },
     "speaker_not_found": {
       "message": "Nessun altoparlante trovato per l’ID dispositivo: {device_id}"
+    },
+    "not_in_group": {
+      "message": "L'altoparlante non fa parte di nessun gruppo."
+    },
+    "master_not_found": {
+      "message": "Master del gruppo non trovato."
+    },
+    "source_not_configured": {
+      "message": "Sorgente non configurata."
     }
   },
   "services": {

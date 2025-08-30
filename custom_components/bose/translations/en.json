@@ -136,6 +136,15 @@
         },
         "speaker_not_found": {
             "message": "No speaker found for device ID: {device_id}"
+        },
+        "not_in_group": {
+            "message": "Speaker is not part of any group."
+        },
+        "master_not_found": {
+            "message": "Group master not found."
+        },
+        "source_not_configured": {
+            "message": "Source not configured."
         }
     },
     "services": {
