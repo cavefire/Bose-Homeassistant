@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from ..const import _LOGGER, DOMAIN
+from ..coordinator import BoseCoordinator
 
 
 def dummy_battery_status() -> Battery:
@@ -34,11 +35,16 @@ class BoseBatteryBase:
     """Helper mixin for Bose battery sensors."""
 
     def __init__(
-        self, speaker: BoseSpeaker, config_entry: ConfigEntry, hass: HomeAssistant
+        self,
+        speaker: BoseSpeaker,
+        config_entry: ConfigEntry,
+        hass: HomeAssistant,
+        coordinator: BoseCoordinator,
     ) -> None:
         """Initialize the battery helper on the entity instance."""
         self.speaker = speaker
         self.config_entry = config_entry
+        self.coordinator = coordinator
         self._attr_device_info = {
             "identifiers": {(DOMAIN, config_entry.data["guid"])},
         }
@@ -64,7 +70,8 @@ class BoseBatteryBase:
         if not getattr(self, "hass", None):
             return
         try:
-            battery_status = await self.speaker.get_battery_status()
+            battery_data = await self.coordinator.get_battery_status()
+            battery_status = Battery(battery_data)
             self.update_from_battery_status(battery_status)
             self.async_write_ha_state()
         except Exception:  # noqa: BLE001

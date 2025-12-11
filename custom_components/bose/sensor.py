@@ -20,13 +20,14 @@ async def async_setup_entry(
 ) -> None:
     """Set up Bose battery sensor if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
     if speaker.has_capability("/system/battery"):
         async_add_entities(
             [
-                BoseBatteryLevelSensor(speaker, config_entry, hass),
-                BoseBatteryTimeTillEmpty(speaker, config_entry, hass),
-                BoseBatteryTimeTillFull(speaker, config_entry, hass),
+                BoseBatteryLevelSensor(speaker, config_entry, hass, coordinator),
+                BoseBatteryTimeTillEmpty(speaker, config_entry, hass, coordinator),
+                BoseBatteryTimeTillFull(speaker, config_entry, hass, coordinator),
             ],
             update_before_add=False,
         )
@@ -40,10 +41,11 @@ class BoseBatteryLevelSensor(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         speaker: BoseSpeaker,
         config_entry,
         hass: HomeAssistant,
+        coordinator,
     ) -> None:
         """Initialize battery level sensor."""
         BoseBaseEntity.__init__(self, speaker)
-        BoseBatteryBase.__init__(self, speaker, config_entry, hass)
+        BoseBatteryBase.__init__(self, speaker, config_entry, hass, coordinator)
         self._attr_translation_key = "battery_level"
         self._attr_native_unit_of_measurement = "%"
         self._attr_device_class = SensorDeviceClass.BATTERY
@@ -61,10 +63,11 @@ class BoseBatteryTimeTillFull(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         speaker: BoseSpeaker,
         config_entry,
         hass: HomeAssistant,
+        coordinator,
     ) -> None:
         """Initialize charging state sensor."""
         BoseBaseEntity.__init__(self, speaker)
-        BoseBatteryBase.__init__(self, speaker, config_entry, hass)
+        BoseBatteryBase.__init__(self, speaker, config_entry, hass, coordinator)
         self._attr_translation_key = "time_till_full"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = "min"
@@ -88,10 +91,11 @@ class BoseBatteryTimeTillEmpty(BoseBaseEntity, BoseBatteryBase, SensorEntity):
         speaker: BoseSpeaker,
         config_entry,
         hass: HomeAssistant,
+        coordinator,
     ) -> None:
         """Initialize charging state sensor."""
         BoseBaseEntity.__init__(self, speaker)
-        BoseBatteryBase.__init__(self, speaker, config_entry, hass)
+        BoseBatteryBase.__init__(self, speaker, config_entry, hass, coordinator)
         self._attr_translation_key = "time_till_empty"
         self._attr_device_class = SensorDeviceClass.DURATION
         self._attr_native_unit_of_measurement = "min"

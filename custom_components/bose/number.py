@@ -90,12 +90,15 @@ async def async_setup_entry(
 ) -> None:
     """Set up Bose number entities (sliders) for sound settings."""
     speaker: BoseSpeaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
     # Fetch system info
     system_info = await speaker.get_system_info()
 
     entities = [
-        BoseAudioSlider(speaker, system_info, config_entry, parameter, hass)
+        BoseAudioSlider(
+            speaker, system_info, config_entry, parameter, hass, coordinator
+        )
         for parameter in ADJUSTABLE_PARAMETERS
         if speaker.has_capability(parameter["path"])
     ]
@@ -113,11 +116,13 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
         config_entry,
         parameter,
         hass: HomeAssistant,
+        coordinator,
     ) -> None:
         """Initialize the slider."""
         BoseBaseEntity.__init__(self, speaker)
         self.speaker_info = speaker_info
         self.config_entry = config_entry
+        self.coordinator = coordinator
         self._path = parameter.get("path")
         self._option = parameter.get("option")
         self._attr_native_value = None
@@ -156,7 +161,8 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
 
     async def async_update(self) -> None:
         """Fetch the current value of the setting."""
-        self._parse_audio(await self.speaker.get_audio_setting(self._option))
+        audio_dict = await self.coordinator.get_audio_setting(self._option)
+        self._parse_audio(Audio(audio_dict))
         if self.hass:
             self.async_write_ha_state()
 

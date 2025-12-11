@@ -1,12 +1,7 @@
 """Support for Bose media player."""
 
 import asyncio
-import functools
 from typing import Any
-
-import pychromecast
-from pychromecast import discovery
-from pychromecast.discovery import CastBrowser, SimpleCastListener
 
 from pybose.BoseResponse import (
     AudioVolume,
@@ -17,6 +12,9 @@ from pybose.BoseResponse import (
     SystemInfo,
 )
 from pybose.BoseSpeaker import BoseSpeaker
+import pychromecast
+from pychromecast import discovery
+from pychromecast.discovery import CastBrowser, SimpleCastListener
 
 from homeassistant.components import media_source, zeroconf
 from homeassistant.components.media_player import (
@@ -35,6 +33,7 @@ import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .const import _LOGGER, DOMAIN
+from .coordinator import BoseCoordinator
 from .entity import BoseBaseEntity
 
 
@@ -46,9 +45,11 @@ async def async_setup_entry(
     """Set up Bose media player."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     system_info = hass.data[DOMAIN][config_entry.entry_id]["system_info"]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
     async_add_entities(
-        [BoseMediaPlayer(speaker, system_info, hass)], update_before_add=False
+        [BoseMediaPlayer(speaker, system_info, hass, coordinator)],
+        update_before_add=False,
     )
 
 
@@ -60,10 +61,12 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         speaker: BoseSpeaker,
         system_info: SystemInfo,
         hass: HomeAssistant,
+        coordinator: BoseCoordinator,
     ) -> None:
         """Initialize the Bose media player."""
         BoseBaseEntity.__init__(self, speaker)
         self.speaker = speaker
+        self.coordinator = coordinator
         self.hass = hass
         self._device_id = speaker.get_device_id()
         self._is_on = False
@@ -191,9 +194,9 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         self._attr_source = data.get("source", {}).get("sourceDisplayName", None)
 
-        if  self._attr_source == "Chromecast Built-in":
-           return
-        
+        if self._attr_source == "Chromecast Built-in":
+            return
+
         self._attr_media_title = data.get("metadata", {}).get("trackName")
         self._attr_media_artist = data.get("metadata", {}).get("artist")
         self._attr_media_album_name = data.get("metadata", {}).get("album")
@@ -317,17 +320,17 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     async def _async_update_active_bluetooth_source(self) -> None:
         """Async helper to fetch active Bluetooth device and update source."""
         try:
-            status = await self.speaker.get_bluetooth_sink_status()
+            status_dict = await self.coordinator.get_bluetooth_sink_status()
         except (ConnectionError, TimeoutError) as err:
             _LOGGER.debug("Failed to fetch active Bluetooth device: %s", err)
             return
 
         active_device = None
         ad = None
-        if isinstance(status, dict):
-            ad = status.get("activeDevice")
+        if isinstance(status_dict, dict):
+            ad = status_dict.get("activeDevice")
         else:
-            get_fn = getattr(status, "get", None)
+            get_fn = getattr(status_dict, "get", None)
             if callable(get_fn):
                 try:
                     ad = get_fn("activeDevice")
@@ -344,27 +347,38 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
-        data = await self.speaker.get_now_playing()
+        data_dict = await self.coordinator.get_now_playing()
+        data = ContentNowPlaying(data_dict)
         self._parse_now_playing(data)
 
-        data = await self.speaker.get_audio_volume()
-        self._parse_audio_volume(data)
+        volume_dict = await self.coordinator.get_audio_volume()
+        volume_data = AudioVolume(volume_dict)
+        self._parse_audio_volume(volume_data)
 
         # Refresh Bluetooth information
         try:
-            bluetooth_sink_status = await self.speaker.get_bluetooth_sink_status()
+            bluetooth_sink_status_dict = (
+                await self.coordinator.get_bluetooth_sink_status()
+            )
+            bluetooth_sink_status = BluetoothSinkStatus(bluetooth_sink_status_dict)
             self._parse_bluetooth_sink_status(bluetooth_sink_status)
 
-            bluetooth_sink_list = await self.speaker.get_bluetooth_sink_list()
+            bluetooth_sink_list_dict = await self.coordinator.get_bluetooth_sink_list()
+            bluetooth_sink_list = BluetoothSinkList(bluetooth_sink_list_dict)
             self._parse_bluetooth_sink_list(bluetooth_sink_list)
 
-            bluetooth_source_status = await self.speaker.get_bluetooth_source_status()
+            bluetooth_source_status_dict = (
+                await self.coordinator.get_bluetooth_source_status()
+            )
+            bluetooth_source_status = BluetoothSourceStatus(
+                bluetooth_source_status_dict
+            )
             self._parse_bluetooth_source_status(bluetooth_source_status)
         except (ConnectionError, TimeoutError) as err:
             _LOGGER.debug("Failed to get Bluetooth information: %s", err)
 
         # Refresh available sources (build human readable list)
-        sources = await self.speaker.get_sources()
+        sources = await self.coordinator.get_sources()
         for source in sources.get("sources", []):
             if (
                 (
@@ -399,7 +413,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                         if key not in self._attr_source_list:
                             self._attr_source_list.append(key)
 
-        active_groups = await self.speaker.get_active_groups()
+        active_groups = await self.coordinator.get_active_groups()
         self._parse_grouping({"activeGroups": active_groups})
         self.async_write_ha_state()
 
@@ -536,10 +550,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 )
 
             idle_tries = 0
-            while(self._chromecast_device.is_idle and idle_tries < 5):
+            while self._chromecast_device.is_idle and idle_tries < 5:
                 await asyncio.sleep(1)
                 idle_tries += 1
-                
+
             if self._chromecast_device.is_idle:
                 raise ServiceValidationError(
                     translation_domain=DOMAIN,
@@ -572,7 +586,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 },
             ) from err
 
-    async def _async_setup_chromecast(self, secondTry = False) -> None:
+    async def _async_setup_chromecast(self, secondTry=False) -> None:
         """Set up Chromecast device for media playback."""
         if self._speaker_ip is None:
             _LOGGER.warning("No speaker IP available for Chromecast setup")
@@ -590,17 +604,17 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 if uuid in browser.devices:
                     device = browser.devices[uuid]
                     if device.host == self._speaker_ip:
-                        _LOGGER.debug("Found matching Chromecast device: %s", device.friendly_name)
+                        _LOGGER.debug(
+                            "Found matching Chromecast device: %s", device.friendly_name
+                        )
 
             # Create browser and start discovery using shared Zeroconf instance
             browser = await self.hass.async_add_executor_job(
-                CastBrowser,
-                SimpleCastListener(cast_listener),
-                zc
+                CastBrowser, SimpleCastListener(cast_listener), zc
             )
-            
+
             await self.hass.async_add_executor_job(browser.start_discovery)
-            
+
             # Wait a bit for discovery to find devices
             await asyncio.sleep(3)
 
@@ -610,9 +624,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 if device.host == self._speaker_ip:
                     # Create chromecast instance
                     self._chromecast_device = await self.hass.async_add_executor_job(
-                        pychromecast.get_chromecast_from_cast_info,
-                        device,
-                        zc
+                        pychromecast.get_chromecast_from_cast_info, device, zc
                     )
                     self._media_controller = self._chromecast_device.media_controller
                     _LOGGER.info(
@@ -627,16 +639,23 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 await self.hass.async_add_executor_job(self._chromecast_device.wait)
                 _LOGGER.debug("Chromecast device connected successfully")
             elif not chromecast_found:
-                _LOGGER.debug("Chromecast device not found for Bose speaker at %s", self._speaker_ip)
+                _LOGGER.debug(
+                    "Chromecast device not found for Bose speaker at %s",
+                    self._speaker_ip,
+                )
                 if not secondTry:
                     await self.speaker.set_chromecast(True)
                     # Stop discovery before retrying
-                    await self.hass.async_add_executor_job(discovery.stop_discovery, browser)
+                    await self.hass.async_add_executor_job(
+                        discovery.stop_discovery, browser
+                    )
                     await self._async_setup_chromecast(True)
                     return
                 else:
-                    _LOGGER.warning("No Chromecast device found for Bose speaker after enabling Chromecast")
-                
+                    _LOGGER.warning(
+                        "No Chromecast device found for Bose speaker after enabling Chromecast"
+                    )
+
             # Stop discovery
             await self.hass.async_add_executor_job(discovery.stop_discovery, browser)
 
@@ -753,12 +772,12 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             )
 
     @property
-    def source_list(self) -> list[str] | None: # pyright: ignore[reportIncompatibleVariableOverride]
+    def source_list(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the list of available input sources."""
-        
-        if(self._attr_source == "Chromecast built-in"):
+
+        if self._attr_source == "Chromecast built-in":
             return ["Chromecast built-in"] + self._attr_source_list
-        
+
         return self._attr_source_list
 
     @property
@@ -808,5 +827,12 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             | (MediaPlayerEntityFeature.STOP if _can("canStop") else 0)
             | MediaPlayerEntityFeature.GROUPING
             | MediaPlayerEntityFeature.SELECT_SOURCE
-            | ((MediaPlayerEntityFeature.PLAY_MEDIA | MediaPlayerEntityFeature.BROWSE_MEDIA) if self._chromecast_device is not None else 0)
+            | (
+                (
+                    MediaPlayerEntityFeature.PLAY_MEDIA
+                    | MediaPlayerEntityFeature.BROWSE_MEDIA
+                )
+                if self._chromecast_device is not None
+                else 0
+            )
         )

@@ -19,6 +19,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
 from .const import _LOGGER, DOMAIN
+from .coordinator import BoseCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -154,6 +155,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.entry_id]["system_info"] = system_info
     hass.data[DOMAIN][config_entry.entry_id]["capabilities"] = capabilities
     hass.data[DOMAIN][config_entry.entry_id]["auth"] = auth
+
+    coordinator = BoseCoordinator(
+        hass,
+        speaker,
+        config_entry.data["guid"],
+    )
+    hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
+    await coordinator.async_config_entry_first_refresh()
 
     try:
         # Not all Devices have accessories like "Bose Portable Smart Speaker"
