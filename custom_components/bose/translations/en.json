@@ -57,6 +57,9 @@
             "subwoofer_gain": {
                 "name": "Subwoofer Gain"
             },
+            "surround": {
+                "name": "Rear Speakers Gain"
+            },
             "treble": {
                 "name": "Treble"
             }

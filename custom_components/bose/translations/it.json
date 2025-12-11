@@ -113,6 +113,9 @@
       "subwoofer_gain": {
         "name": "Guadagno subwoofer"
       },
+      "surround": {
+        "name": "Guadagno altoparlanti posteriori"
+      },
       "height": {
         "name": "Canale altezza"
       },

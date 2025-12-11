@@ -113,6 +113,9 @@
       "subwoofer_gain": {
         "name": "Ganancia del subwoofer"
       },
+      "surround": {
+        "name": "Ganancia de los altavoces traseros"
+      },
       "height": {
         "name": "Canal de altura"
       },

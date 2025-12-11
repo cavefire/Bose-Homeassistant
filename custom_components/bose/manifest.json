@@ -8,10 +8,10 @@
   "dependencies": [],
   "documentation": "https://github.com/cavefire/Bose-Homeassistant",
   "homekit": {},
-  "iot_class": "local_polling",
+  "iot_class": "local_push",
   "issue_tracker": "https://github.com/cavefire/Bose-Homeassistant/issues",
   "requirements": [
-    "pybose==2025.8.2",
+    "pybose==2025.12.1",
     "pychromecast>=13.0.0"
   ],
   "ssdp": [],

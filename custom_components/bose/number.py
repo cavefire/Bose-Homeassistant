@@ -56,6 +56,14 @@ ADJUSTABLE_PARAMETERS = [
         "step": 10,
     },
     {
+        "display": "Rear Speaker Gain",
+        "path": "/audio/surround",
+        "option": "surround",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
+    {
         "display": "Height",
         "path": "/audio/height",
         "option": "height",

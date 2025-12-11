@@ -113,6 +113,9 @@
       "subwoofer_gain": {
         "name": "Subwoofer‑Verstärkung"
       },
+      "surround": {
+        "name": "Rücklautsprecher-Verstärkung"
+      },
       "height": {
         "name": "Höhen-Kanal"
       },
