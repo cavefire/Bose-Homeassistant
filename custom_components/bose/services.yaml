@@ -1,10 +1,14 @@
 send_custom_request:
   name: Send Custom Request
   description: Send a direct request to a Bose speaker.
-  target:
-    device:
-      integration: bose
   fields:
+    device_id:
+      required: true
+      example: 'abcdef1234567890'
+      selector:
+        device:
+          integration: bose
+      description: 'The Bose device to send the request to.'
     resource:
       required: true
       example: '/system/info'
@@ -32,10 +36,14 @@ send_custom_request:
 connect_bluetooth_device:
   name: Connect Bluetooth Device
   description: Connect to a Bluetooth device by MAC address.
-  target:
-    device:
-      integration: bose
   fields:
+    device_id:
+      required: true
+      example: 'abcdef1234567890'
+      selector:
+        device:
+          integration: bose
+      description: 'The Bose device to connect the Bluetooth device to.'
     mac_address:
       required: true
       example: '00:11:22:33:44:55'
@@ -46,10 +54,14 @@ connect_bluetooth_device:
 disconnect_bluetooth_device:
   name: Disconnect Bluetooth Device
   description: Disconnect a Bluetooth device by MAC address.
-  target:
-    device:
-      integration: bose
   fields:
+    device_id:
+      required: true
+      example: 'abcdef1234567890'
+      selector:
+        device:
+          integration: bose
+      description: 'The Bose device to disconnect the Bluetooth device from.'
     mac_address:
       required: true
       example: '00:11:22:33:44:55'
@@ -60,10 +72,14 @@ disconnect_bluetooth_device:
 remove_bluetooth_device:
   name: Remove Bluetooth Device
   description: Remove a paired Bluetooth device by MAC address.
-  target:
-    device:
-      integration: bose
   fields:
+    device_id:
+      required: true
+      example: 'abcdef1234567890'
+      selector:
+        device:
+          integration: bose
+      description: 'The Bose device to remove the Bluetooth device from.'
     mac_address:
       required: true
       example: '00:11:22:33:44:55'
@@ -74,6 +90,11 @@ remove_bluetooth_device:
 set_bluetooth_pairable:
   name: Enable Bluetooth Pairing
   description: Enable Bluetooth pairing mode on the speaker.
-  target:
-    device:
-      integration: bose
+  fields:
+    device_id:
+      required: true
+      example: 'abcdef1234567890'
+      selector:
+        device:
+          integration: bose
+      description: 'The Bose device to enable pairing mode on.'
