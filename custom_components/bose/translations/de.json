@@ -149,13 +149,13 @@
       "message": "Kein Lautsprecher für Geräte‑ID gefunden: {device_id}"
     },
     "not_in_group": {
-      "message": "Lautsprecher ist keiner Gruppe zugeordnet."
+      "message": "Entität {entity_id} ist keiner Gruppe zugeordnet."
     },
     "master_not_found": {
-      "message": "Gruppenmaster nicht gefunden."
+      "message": "Haupt‑Entität {entity_id} nicht gefunden."
     },
     "source_not_configured": {
-      "message": "Quelle nicht konfiguriert."
+      "message": "Quelle {source_name} ist nicht korrekt konfiguriert."
     },
     "chromecast_not_available": {
       "message": "Chromecast-Funktionalität für Lautsprecher unter {speaker_ip} nicht verfügbar"

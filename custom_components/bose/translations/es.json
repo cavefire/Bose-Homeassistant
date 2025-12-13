@@ -149,13 +149,13 @@
       "message": "No se encontró un altavoz para el ID de dispositivo: {device_id}"
     },
     "not_in_group": {
-      "message": "El altavoz no forma parte de ningún grupo."
+      "message": "La entidad {entity_id} no forma parte de ningún grupo."
     },
     "master_not_found": {
-      "message": "No se encontró el maestro del grupo."
+      "message": "No se encontró la entidad maestra {entity_id}."
     },
     "source_not_configured": {
-      "message": "Fuente no configurada."
+      "message": "La fuente {source_name} no está configurada correctamente."
     },
     "chromecast_not_available": {
       "message": "Funcionalidad de Chromecast no disponible para el altavoz en {speaker_ip}"
