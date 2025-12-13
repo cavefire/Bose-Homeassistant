@@ -48,7 +48,7 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
     async_add_entities(
-        [BoseMediaPlayer(speaker, system_info, hass, coordinator)],
+        [BoseMediaPlayer(speaker, system_info, hass, coordinator, config_entry)],
         update_before_add=False,
     )
 
@@ -62,6 +62,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         system_info: SystemInfo,
         hass: HomeAssistant,
         coordinator: BoseCoordinator,
+        config_entry: ConfigEntry,
     ) -> None:
         """Initialize the Bose media player."""
         BoseBaseEntity.__init__(self, speaker)
@@ -95,13 +96,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._bluetooth_devices: dict[str, dict] = {}
         self._chromecast_device = None
         self._media_controller = None
-        self._speaker_ip = None
-
-        config_data = hass.data[DOMAIN].get(
-            hass.config_entries.async_entries(DOMAIN)[0].entry_id, {}
-        )
-        if "config" in config_data and "ip" in config_data["config"]:
-            self._speaker_ip = config_data["config"]["ip"]
+        self._speaker_ip = config_entry.data.get("ip")
 
         speaker.attach_receiver(self.parse_message)
 
@@ -541,20 +536,11 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         )
 
         try:
+            if self._chromecast_device is None or self._media_controller is None:
+                await self._async_setup_chromecast()
+
             # Check if Chromecast device is available
             if self._chromecast_device is None or self._media_controller is None:
-                raise ServiceValidationError(
-                    translation_domain=DOMAIN,
-                    translation_key="chromecast_not_available",
-                    translation_placeholders={"speaker_ip": str(self._speaker_ip)},
-                )
-
-            idle_tries = 0
-            while self._chromecast_device.is_idle and idle_tries < 5:
-                await asyncio.sleep(1)
-                idle_tries += 1
-
-            if self._chromecast_device.is_idle:
                 raise ServiceValidationError(
                     translation_domain=DOMAIN,
                     translation_key="chromecast_not_available",
