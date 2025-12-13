@@ -4,7 +4,8 @@
       "already_configured": "El dispositivo ya está configurado",
       "auth_failed": "La autenticación con tu cuenta BOSE ha fallado. Verifica tu dirección de correo electrónico y tu contraseña.",
       "connect_failed": "No se pudo conectar con el altavoz. Asegúrate de que el altavoz esté encendido, conectado y que la dirección IP sea correcta.",
-      "info_failed": "Conexión con el dispositivo establecida, pero la obtención de información del altavoz ha fallado. Revisa los registros para más detalles."
+      "info_failed": "Conexión con el dispositivo establecida, pero la obtención de información del altavoz ha fallado. Revisa los registros para más detalles.",
+      "no_guid": "Descubrimiento del dispositivo fallido: no se encontró GUID en la información de descubrimiento."
     },
     "error": {
       "auth_failed": "La autenticación con tu cuenta BOSE ha fallado. Verifica tu dirección de correo electrónico y tu contraseña."
@@ -21,6 +22,13 @@
       "manual_ip": {
         "data": {
           "manual_ip": "Dirección IP de tu dispositivo BOSE"
+        }
+      },
+      "zeroconf_confirm": {
+        "description": "Se descubrió un dispositivo Bose ({name}) en {ip}. Ingresa tus credenciales de cuenta Bose para configurarlo.",
+        "data": {
+          "mail": "Dirección de correo electrónico de tu cuenta BOSE",
+          "password": "Contraseña de tu cuenta BOSE"
         }
       }
     }

@@ -4,7 +4,8 @@
       "already_configured": "Gerät ist bereits konfiguriert",
       "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort.",
       "connect_failed": "Verbindung zum Lautsprecher fehlgeschlagen. Prüfe, ob der Lautsprecher eingeschaltet und verbunden ist und ob die IP‑Adresse korrekt ist.",
-      "info_failed": "Verbindung zum Gerät hergestellt, aber das Abrufen der Lautsprecherinformationen ist fehlgeschlagen. Prüf die Protokolle für mehr Informationen."
+      "info_failed": "Verbindung zum Gerät hergestellt, aber das Abrufen der Lautsprecherinformationen ist fehlgeschlagen. Prüf die Protokolle für mehr Informationen.",
+      "no_guid": "Geräteerkennung fehlgeschlagen: Keine GUID in den Erkennungsinformationen gefunden."
     },
     "error": {
       "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort."
@@ -21,6 +22,13 @@
       "manual_ip": {
         "data": {
           "manual_ip": "IP-Adresse deines BOSE‑Geräts"
+        }
+      },
+      "zeroconf_confirm": {
+        "description": "Ein Bose‑Gerät ({name}) wurde unter {ip} erkannt. Gib deine Bose‑Kontodaten ein, um es einzurichten.",
+        "data": {
+          "mail": "E‑Mail‑Adresse deines BOSE‑Kontos",
+          "password": "Passwort deines BOSE‑Kontos"
         }
       }
     }

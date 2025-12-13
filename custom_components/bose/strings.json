@@ -4,7 +4,8 @@
       "already_configured": "Device is already configured",
       "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password.",
       "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
-      "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details."
+      "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details.",
+      "no_guid": "Device discovery failed: no GUID found in discovery information."
     },
     "error": {
       "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
@@ -21,6 +22,13 @@
       "manual_ip": {
         "data": {
           "manual_ip": "IP address of your BOSE device"
+        }
+      },
+      "zeroconf_confirm": {
+        "description": "A Bose device ({name}) was discovered at {ip}. Enter your Bose account credentials to set it up.",
+        "data": {
+          "mail": "Email address of your BOSE account",
+          "password": "Password of your BOSE account"
         }
       }
     }

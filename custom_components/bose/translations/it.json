@@ -4,7 +4,8 @@
       "already_configured": "Il dispositivo è già configurato",
       "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l’indirizzo email e la password.",
       "connect_failed": "Connessione all’altoparlante non riuscita. Assicurati che l’altoparlante sia acceso, collegato e che l’indirizzo IP sia corretto.",
-      "info_failed": "Connessione al dispositivo stabilita, ma il recupero delle informazioni dell’altoparlante non è riuscito. Controlla i log per maggiori dettagli."
+      "info_failed": "Connessione al dispositivo stabilita, ma il recupero delle informazioni dell'altoparlante non è riuscito. Controlla i log per maggiori dettagli.",
+      "no_guid": "Rilevamento del dispositivo fallito: nessun GUID trovato nelle informazioni di rilevamento."
     },
     "error": {
       "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l’indirizzo email e la password."
@@ -21,6 +22,13 @@
       "manual_ip": {
         "data": {
           "manual_ip": "Indirizzo IP del tuo dispositivo BOSE"
+        }
+      },
+      "zeroconf_confirm": {
+        "description": "È stato rilevato un dispositivo Bose ({name}) all'indirizzo {ip}. Inserisci le credenziali del tuo account Bose per configurarlo.",
+        "data": {
+          "mail": "Indirizzo email del tuo account BOSE",
+          "password": "Password del tuo account BOSE"
         }
       }
     }

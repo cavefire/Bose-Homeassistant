@@ -10,6 +10,7 @@ import homeassistant.components.zeroconf
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import translation as translation_helper
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import _LOGGER, DOMAIN
 
@@ -44,6 +45,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.mail = None
         self.password = None
         self._auth = None
+        self._discovered_device = None
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
@@ -197,5 +199,68 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "guid": guid,
                 "serial": system_info["serialNumber"],
                 "name": system_info["name"],
+            },
+        )
+
+    async def async_step_zeroconf(
+        self, discovery_info: ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle zeroconf discovery."""
+        _LOGGER.debug("Zeroconf discovery info: %s", discovery_info)
+
+        guid = discovery_info.properties.get("GUID")
+        if not guid:
+            return self.async_abort(reason="no_guid")
+
+        await self.async_set_unique_id(guid)
+        self._abort_if_unique_id_configured(updates={"ip": discovery_info.host})
+
+        self._discovered_device = {
+            "ip": discovery_info.host,
+            "guid": guid,
+            "name": discovery_info.name.split(".")[0],
+        }
+
+        self.context["title_placeholders"] = {"name": self._discovered_device["name"]}
+
+        return await self.async_step_zeroconf_confirm()
+
+    async def async_step_zeroconf_confirm(self, user_input=None) -> ConfigFlowResult:
+        """Handle zeroconf confirmation step."""
+        errors = {}
+
+        if user_input is not None:
+            self.mail = user_input["mail"]
+            self.password = user_input["password"]
+
+            login_response = await self.hass.async_add_executor_job(
+                self._login, self.mail, self.password
+            )
+
+            if login_response:
+                try:
+                    return await self._get_device_info(
+                        self.mail, self.password, self._discovered_device["ip"]
+                    )
+                except Exception as e:  # noqa: BLE001
+                    _LOGGER.exception("Unexpected error", exc_info=e)
+                    errors["base"] = "auth_failed"
+            else:
+                errors["base"] = "auth_failed"
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("mail"): str,
+                vol.Required("password"): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="zeroconf_confirm",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "name": self._discovered_device["name"],
+                "ip": self._discovered_device["ip"],
             },
         )
