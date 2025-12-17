@@ -18,7 +18,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
-from .const import _LOGGER, DOMAIN
+from .const import _LOGGER, DOMAIN, TOKEN_REFRESH_DELAY, TOKEN_RETRY_DELAY
 from .coordinator import BoseCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -195,25 +195,26 @@ async def refresh_token_thread(
     """Refresh the token periodically."""
     while True:
         if (
-            auth.get_token_validity_time() > 21600
-        ):  # when token is valid for more than 6 hours
+            auth.get_token_validity_time() > 2 * TOKEN_REFRESH_DELAY
+        ):  # when token is valid for more than 2 * refresh-delay ...
             _LOGGER.debug(
-                "Sleeping for %s seconds before refreshing", 14400
-            )  # wait for 4 hours before refreshing token
-            await asyncio.sleep(14400)
+                "Sleeping for %s seconds before refreshing", TOKEN_REFRESH_DELAY
+            )  # wait for 1 x refresh-delay before checking again
+            await asyncio.sleep(TOKEN_REFRESH_DELAY)
         _LOGGER.info("Refreshing token for %s", config_entry.data["mail"])
         if not await refresh_token(hass, config_entry, auth):
             _LOGGER.error(
-                "Failed to refresh token for %s. Trying again in 120 seconds",
+                "Failed to refresh token for %s. Trying again in %s seconds",
                 config_entry.data["mail"],
+                TOKEN_RETRY_DELAY
             )
-            await asyncio.sleep(120)
         else:
             _LOGGER.info(
                 "Token refreshed successfully for %s. New token valid for %s seconds",
                 config_entry.data["mail"],
                 auth.get_token_validity_time(),
             )
+        await asyncio.sleep(TOKEN_RETRY_DELAY)
 
 
 async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: BoseAuth):
