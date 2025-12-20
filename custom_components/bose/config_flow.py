@@ -186,13 +186,30 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="auth_failed")
 
         tokens = self._auth.getCachedToken()
+        _LOGGER.debug(
+            "Cached token keys from initial setup: %s",
+            list(tokens.keys()) if tokens else None,
+        )
+
+        # Check for both possible key names (API inconsistency)
+        bose_person_id = (
+            tokens.get("bosePersonID") or tokens.get("bose_person_id")
+            if tokens
+            else None
+        )
 
         if (
             tokens is None
-            or tokens.get("bosePersonID") is None
+            or bose_person_id is None
             or tokens.get("access_token") is None
             or tokens.get("refresh_token") is None
         ):
+            _LOGGER.error(
+                "Token validation failed during initial setup - bose_person_id: %s, has_access: %s, has_refresh: %s",
+                bose_person_id is not None,
+                tokens.get("access_token") is not None if tokens else False,
+                tokens.get("refresh_token") is not None if tokens else False,
+            )
             return self.async_abort(reason="auth_failed")
 
         return self.async_create_entry(
@@ -200,7 +217,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data={
                 "mail": self.mail,
                 "ip": ip,
-                "bose_person_id": tokens.get("bosePersonID"),
+                "bose_person_id": bose_person_id,
                 "access_token": tokens.get("access_token"),
                 "refresh_token": tokens.get("refresh_token"),
                 "guid": guid,
