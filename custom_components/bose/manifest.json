@@ -11,11 +11,11 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/cavefire/Bose-Homeassistant/issues",
   "requirements": [
-    "pybose==2025.12.1",
+    "pybose==2025.12.2",
     "pychromecast>=13.0.0"
   ],
   "ssdp": [],
-  "version": "1.0.2",
+  "version": "1.2.1",
   "zeroconf": [
     "_bose-passport._tcp.local."
   ]

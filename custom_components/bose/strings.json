@@ -5,7 +5,10 @@
       "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password.",
       "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
       "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details.",
-      "no_guid": "Device discovery failed: no GUID found in discovery information."
+      "no_guid": "Device discovery failed: no GUID found in discovery information.",
+      "reauth_failed": "Reauthentication failed. Please try removing and re-adding the device.",
+      "reauth_successful": "Successfully reauthenticated with your Bose account.",
+      "wrong_account": "The account you entered does not match the account used when setting up this device. Please use the same account."
     },
     "error": {
       "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
@@ -26,6 +29,13 @@
       },
       "zeroconf_confirm": {
         "description": "A Bose device ({name}) was discovered at {ip}. Enter your Bose account credentials to set it up.",
+        "data": {
+          "mail": "Email address of your BOSE account",
+          "password": "Password of your BOSE account"
+        }
+      },
+      "reauth_confirm": {
+        "description": "The authentication for your Bose device ({device_name}) has expired. Please re-enter your credentials to continue using the device.",
         "data": {
           "mail": "Email address of your BOSE account",
           "password": "Password of your BOSE account"

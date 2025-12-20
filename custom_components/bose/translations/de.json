@@ -5,7 +5,10 @@
       "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort.",
       "connect_failed": "Verbindung zum Lautsprecher fehlgeschlagen. Prüfe, ob der Lautsprecher eingeschaltet und verbunden ist und ob die IP‑Adresse korrekt ist.",
       "info_failed": "Verbindung zum Gerät hergestellt, aber das Abrufen der Lautsprecherinformationen ist fehlgeschlagen. Prüf die Protokolle für mehr Informationen.",
-      "no_guid": "Geräteerkennung fehlgeschlagen: Keine GUID in den Erkennungsinformationen gefunden."
+      "no_guid": "Geräteerkennung fehlgeschlagen: Keine GUID in den Erkennungsinformationen gefunden.",
+      "reauth_failed": "Erneute Authentifizierung fehlgeschlagen. Bitte versuche, das Gerät zu entfernen und erneut hinzuzufügen.",
+      "reauth_successful": "Erfolgreich mit deinem Bose-Konto erneut authentifiziert.",
+      "wrong_account": "Das eingegebene Konto stimmt nicht mit dem Konto überein, das beim Einrichten dieses Geräts verwendet wurde. Bitte verwende dasselbe Konto."
     },
     "error": {
       "auth_failed": "Authentifizierung mit deinem BOSE‑Konto fehlgeschlagen. Überprüfe deine E‑Mail‑Adresse und dein Passwort."
@@ -26,6 +29,13 @@
       },
       "zeroconf_confirm": {
         "description": "Ein Bose‑Gerät ({name}) wurde unter {ip} erkannt. Gib deine Bose‑Kontodaten ein, um es einzurichten.",
+        "data": {
+          "mail": "E‑Mail‑Adresse deines BOSE‑Kontos",
+          "password": "Passwort deines BOSE‑Kontos"
+        }
+      },
+      "reauth_confirm": {
+        "description": "Die Authentifizierung für dein Bose-Gerät ({device_name}) ist abgelaufen. Bitte gib deine Anmeldedaten erneut ein, um das Gerät weiterhin zu verwenden.",
         "data": {
           "mail": "E‑Mail‑Adresse deines BOSE‑Kontos",
           "password": "Passwort deines BOSE‑Kontos"
