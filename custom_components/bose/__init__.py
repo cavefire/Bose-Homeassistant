@@ -39,6 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         config_entry.data.get("access_token") is not None
         and config_entry.data.get("refresh_token") is not None
         and config_entry.data.get("bose_person_id") is not None
+        and config_entry.data.get("azure_refresh_token") is not None
     ):
         # Using existing access token
         _LOGGER.debug("Using existing access token for %s", config_entry.data["mail"])
@@ -47,6 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             config_entry.data["refresh_token"],
             config_entry.data["bose_person_id"],
         )
+        # Set Azure refresh token which is required for token refresh
+        auth.set_azure_refresh_token(config_entry.data["azure_refresh_token"])
     else:
         # Missing tokens - trigger reauthentication
         _LOGGER.warning(
@@ -221,13 +224,22 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
     try:
         new_token = await hass.async_add_executor_job(auth.do_token_refresh)
         if new_token:
+            # Get the updated Azure refresh token from auth object
+            azure_refresh_token = auth.get_azure_refresh_token()
+
+            update_data = {
+                **config_entry.data,
+                "access_token": new_token["access_token"],
+                "refresh_token": new_token["refresh_token"],
+            }
+
+            # Update Azure refresh token if available
+            if azure_refresh_token:
+                update_data["azure_refresh_token"] = azure_refresh_token
+
             hass.config_entries.async_update_entry(
                 config_entry,
-                data={
-                    **config_entry.data,
-                    "access_token": new_token["access_token"],
-                    "refresh_token": new_token["refresh_token"],
-                },
+                data=update_data,
             )
             _LOGGER.info(
                 "Token is valid for %s seconds", auth.get_token_validity_time()
