@@ -14,7 +14,7 @@ from homeassistant.core import (
     ServiceResponse,
     SupportsResponse,
 )
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import ConfigEntryAuthFailed, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
@@ -38,6 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if (
         config_entry.data.get("access_token") is not None
         and config_entry.data.get("refresh_token") is not None
+        and config_entry.data.get("bose_person_id") is not None
     ):
         # Using existing access token
         _LOGGER.debug("Using existing access token for %s", config_entry.data["mail"])
@@ -47,32 +48,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             config_entry.data["bose_person_id"],
         )
     else:
-        _LOGGER.debug("No access token found, logging in with credentials")
-
-        access_token = config_entry.data.get("access_token") or ""
-        is_token_valid = await hass.async_add_executor_job(
-            auth.is_token_valid, access_token
+        # Missing tokens - trigger reauthentication
+        _LOGGER.warning(
+            "Missing authentication tokens for %s, triggering reauthentication",
+            config_entry.data.get("mail"),
         )
-
-        if not is_token_valid or config_entry.data.get("bose_person_id", None) is None:
-            _LOGGER.warning("Token is invalid or expired. Logging in with credentials")
-            login_result = await hass.async_add_executor_job(
-                auth.getControlToken,
-                config_entry.data["mail"],
-                config_entry.data["password"],
-                True,
-            )
-
-            # Update the config entry properly using Home Assistant's API
-            hass.config_entries.async_update_entry(
-                config_entry,
-                data={
-                    **config_entry.data,
-                    "access_token": login_result["access_token"],
-                    "refresh_token": login_result["refresh_token"],
-                    "bose_person_id": login_result["bose_person_id"],
-                },
-            )
+        raise ConfigEntryAuthFailed(
+            f"Authentication required for {config_entry.data.get('mail')}"
+        )
 
     hass.async_create_background_task(
         refresh_token_thread(hass, config_entry, auth), "Refresh token"
@@ -202,18 +185,34 @@ async def refresh_token_thread(
             )  # wait for 1 x refresh-delay before checking again
             await asyncio.sleep(TOKEN_REFRESH_DELAY)
         _LOGGER.info("Refreshing token for %s", config_entry.data["mail"])
-        if not await refresh_token(hass, config_entry, auth):
-            _LOGGER.error(
-                "Failed to refresh token for %s. Trying again in %s seconds",
+        try:
+            if not await refresh_token(hass, config_entry, auth):
+                _LOGGER.error(
+                    "Failed to refresh token for %s. Trying again in %s seconds",
+                    config_entry.data["mail"],
+                    TOKEN_RETRY_DELAY,
+                )
+            else:
+                _LOGGER.info(
+                    "Token refreshed successfully for %s. New token valid for %s seconds",
+                    config_entry.data["mail"],
+                    auth.get_token_validity_time(),
+                )
+        except ConfigEntryAuthFailed:
+            # Token refresh failed due to authentication issue - trigger reauth flow
+            _LOGGER.warning(
+                "Authentication failed for %s, starting reauthentication flow",
                 config_entry.data["mail"],
-                TOKEN_RETRY_DELAY
             )
-        else:
-            _LOGGER.info(
-                "Token refreshed successfully for %s. New token valid for %s seconds",
-                config_entry.data["mail"],
-                auth.get_token_validity_time(),
+            hass.async_create_task(
+                hass.config_entries.flow.async_init(
+                    DOMAIN,
+                    context={"source": "reauth", "entry_id": config_entry.entry_id},
+                    data=config_entry.data,
+                )
             )
+            # Stop the refresh loop after triggering reauth
+            break
         await asyncio.sleep(TOKEN_RETRY_DELAY)
 
 
@@ -234,10 +233,21 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                 "Token is valid for %s seconds", auth.get_token_validity_time()
             )
             return True
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
+        error_msg = str(e)
         _LOGGER.error(
-            "Failed to refresh token for %s: %s", config_entry.data["mail"], str(e)
+            "Failed to refresh token for %s: %s", config_entry.data["mail"], error_msg
         )
+
+        # Check if this is an authentication error that requires reauthentication
+        if "refresh token" in error_msg.lower() or "azure" in error_msg.lower():
+            _LOGGER.warning(
+                "Refresh token invalid for %s, triggering reauthentication flow",
+                config_entry.data["mail"],
+            )
+            raise ConfigEntryAuthFailed(
+                f"Refresh token invalid for {config_entry.data['mail']}"
+            ) from e
     return False
 
 

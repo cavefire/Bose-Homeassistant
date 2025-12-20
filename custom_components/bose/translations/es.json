@@ -5,7 +5,10 @@
       "auth_failed": "La autenticación con tu cuenta BOSE ha fallado. Verifica tu dirección de correo electrónico y tu contraseña.",
       "connect_failed": "No se pudo conectar con el altavoz. Asegúrate de que el altavoz esté encendido, conectado y que la dirección IP sea correcta.",
       "info_failed": "Conexión con el dispositivo establecida, pero la obtención de información del altavoz ha fallado. Revisa los registros para más detalles.",
-      "no_guid": "Descubrimiento del dispositivo fallido: no se encontró GUID en la información de descubrimiento."
+      "no_guid": "Descubrimiento del dispositivo fallido: no se encontró GUID en la información de descubrimiento.",
+      "reauth_failed": "Reautenticación fallida. Por favor, intenta eliminar y volver a agregar el dispositivo.",
+      "reauth_successful": "Reautenticado exitosamente con tu cuenta Bose.",
+      "wrong_account": "La cuenta que ingresaste no coincide con la cuenta utilizada al configurar este dispositivo. Por favor, usa la misma cuenta."
     },
     "error": {
       "auth_failed": "La autenticación con tu cuenta BOSE ha fallado. Verifica tu dirección de correo electrónico y tu contraseña."
@@ -26,6 +29,13 @@
       },
       "zeroconf_confirm": {
         "description": "Se descubrió un dispositivo Bose ({name}) en {ip}. Ingresa tus credenciales de cuenta Bose para configurarlo.",
+        "data": {
+          "mail": "Dirección de correo electrónico de tu cuenta BOSE",
+          "password": "Contraseña de tu cuenta BOSE"
+        }
+      },
+      "reauth_confirm": {
+        "description": "La autenticación de tu dispositivo Bose ({device_name}) ha caducado. Por favor, vuelve a ingresar tus credenciales para continuar usando el dispositivo.",
         "data": {
           "mail": "Dirección de correo electrónico de tu cuenta BOSE",
           "password": "Contraseña de tu cuenta BOSE"

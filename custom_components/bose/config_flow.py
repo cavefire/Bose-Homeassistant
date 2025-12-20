@@ -46,6 +46,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.password = None
         self._auth = None
         self._discovered_device = None
+        self._reauth_entry = None
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
@@ -154,11 +155,18 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def _login(self, email, password):
         """Authenticate and retrieve the control token."""
         try:
+            _LOGGER.debug("Starting login process for %s", email)
             self._auth = BoseAuth()
-            return self._auth.getControlToken(email, password, forceNew=True)
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.exception("Failed to get control token", exc_info=e)
+            result = self._auth.getControlToken(email, password, forceNew=True)
+        except Exception:
+            _LOGGER.exception("Failed to get control token for %s", email)
             return None
+        else:
+            _LOGGER.info("Login successful for %s", email)
+            _LOGGER.debug(
+                "Login result keys: %s", list(result.keys()) if result else None
+            )
+            return result
 
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
@@ -191,7 +199,6 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             title=f"{system_info['name']}",
             data={
                 "mail": self.mail,
-                "password": self.password,
                 "ip": ip,
                 "bose_person_id": tokens.get("bosePersonID"),
                 "access_token": tokens.get("access_token"),
@@ -262,5 +269,132 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "name": self._discovered_device["name"],
                 "ip": self._discovered_device["ip"],
+            },
+        )
+
+    async def async_step_reauth(self, entry_data) -> ConfigFlowResult:
+        """Handle reauthentication request."""
+        _LOGGER.info("Starting reauthentication flow")
+        entry_id = self.context.get("entry_id")
+        _LOGGER.debug("Reauth entry_id from context: %s", entry_id)
+        if entry_id:
+            self._reauth_entry = self.hass.config_entries.async_get_entry(entry_id)
+            if self._reauth_entry:
+                _LOGGER.info(
+                    "Reauthentication for device: %s (mail: %s)",
+                    self._reauth_entry.data.get("name"),
+                    self._reauth_entry.data.get("mail"),
+                )
+            else:
+                _LOGGER.error("Could not find config entry with id: %s", entry_id)
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input=None) -> ConfigFlowResult:
+        """Handle reauthentication confirmation."""
+        errors = {}
+
+        if self._reauth_entry is None:
+            _LOGGER.error("Reauth entry is None, aborting")
+            return self.async_abort(reason="reauth_failed")
+
+        if user_input is not None:
+            mail = user_input["mail"]
+            password = user_input["password"]
+            _LOGGER.info("Attempting reauth login for mail: %s", mail)
+
+            login_response = await self.hass.async_add_executor_job(
+                self._login, mail, password
+            )
+            _LOGGER.debug("Login response received: %s", login_response is not None)
+
+            if login_response and self._auth is not None:
+                _LOGGER.debug("Login successful, retrieving cached tokens")
+                tokens = self._auth.getCachedToken()
+                _LOGGER.debug(
+                    "Cached token keys: %s", list(tokens.keys()) if tokens else None
+                )
+                _LOGGER.debug(
+                    "Cached tokens retrieved: %s",
+                    {
+                        "has_tokens": tokens is not None,
+                        "has_bosePersonID": tokens.get("bosePersonID") is not None
+                        if tokens
+                        else False,
+                        "has_bose_person_id": tokens.get("bose_person_id") is not None
+                        if tokens
+                        else False,
+                        "has_access_token": tokens.get("access_token") is not None
+                        if tokens
+                        else False,
+                        "has_refresh_token": tokens.get("refresh_token") is not None
+                        if tokens
+                        else False,
+                    },
+                )
+
+                # Check for both possible key names
+                bose_person_id = (
+                    tokens.get("bosePersonID") or tokens.get("bose_person_id")
+                    if tokens
+                    else None
+                )
+
+                if (
+                    tokens is None
+                    or bose_person_id is None
+                    or tokens.get("access_token") is None
+                    or tokens.get("refresh_token") is None
+                ):
+                    _LOGGER.error("Token validation failed - missing required tokens")
+                    errors["base"] = "auth_failed"
+                else:
+                    old_person_id = self._reauth_entry.data.get("bose_person_id")
+                    new_person_id = bose_person_id
+                    _LOGGER.debug(
+                        "Comparing person IDs - old: %s, new: %s",
+                        old_person_id,
+                        new_person_id,
+                    )
+
+                    if old_person_id and new_person_id != old_person_id:
+                        _LOGGER.warning(
+                            "Account mismatch - old: %s, new: %s",
+                            old_person_id,
+                            new_person_id,
+                        )
+                        return self.async_abort(reason="wrong_account")
+
+                    _LOGGER.info("Reauthentication successful, updating config entry")
+                    return self.async_update_reload_and_abort(
+                        self._reauth_entry,
+                        data={
+                            **self._reauth_entry.data,
+                            "mail": mail,
+                            "access_token": tokens.get("access_token"),
+                            "refresh_token": tokens.get("refresh_token"),
+                            "bose_person_id": bose_person_id,
+                        },
+                    )
+            else:
+                _LOGGER.error(
+                    "Login failed - response: %s, auth: %s",
+                    login_response is not None,
+                    self._auth is not None,
+                )
+                errors["base"] = "auth_failed"
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("mail", default=self._reauth_entry.data.get("mail")): str,
+                vol.Required("password"): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "device_name": self._reauth_entry.data.get("name", "Bose Device"),
             },
         )
