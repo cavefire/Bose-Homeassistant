@@ -182,6 +182,9 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         guid = speaker.get_device_id()
 
+        await self.async_set_unique_id(guid)
+        self._abort_if_unique_id_configured()
+
         if self._auth is None:
             return self.async_abort(reason="auth_failed")
 
