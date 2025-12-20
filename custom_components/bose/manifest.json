@@ -11,7 +11,7 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/cavefire/Bose-Homeassistant/issues",
   "requirements": [
-    "pybose==2025.12.2",
+    "pybose==2025.12.3",
     "pychromecast>=13.0.0"
   ],
   "ssdp": [],

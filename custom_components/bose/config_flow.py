@@ -189,6 +189,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="auth_failed")
 
         tokens = self._auth.getCachedToken()
+        azure_refresh_token = self._auth.get_azure_refresh_token()
+
         _LOGGER.debug(
             "Cached token keys from initial setup: %s",
             list(tokens.keys()) if tokens else None,
@@ -206,12 +208,14 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             or bose_person_id is None
             or tokens.get("access_token") is None
             or tokens.get("refresh_token") is None
+            or azure_refresh_token is None
         ):
             _LOGGER.error(
-                "Token validation failed during initial setup - bose_person_id: %s, has_access: %s, has_refresh: %s",
+                "Token validation failed during initial setup - bose_person_id: %s, has_access: %s, has_refresh: %s, has_azure_refresh: %s",
                 bose_person_id is not None,
                 tokens.get("access_token") is not None if tokens else False,
                 tokens.get("refresh_token") is not None if tokens else False,
+                azure_refresh_token is not None,
             )
             return self.async_abort(reason="auth_failed")
 
@@ -223,6 +227,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "bose_person_id": bose_person_id,
                 "access_token": tokens.get("access_token"),
                 "refresh_token": tokens.get("refresh_token"),
+                "azure_refresh_token": azure_refresh_token,
                 "guid": guid,
                 "serial": system_info["serialNumber"],
                 "name": system_info["name"],
@@ -330,6 +335,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if login_response and self._auth is not None:
                 _LOGGER.debug("Login successful, retrieving cached tokens")
                 tokens = self._auth.getCachedToken()
+                azure_refresh_token = self._auth.get_azure_refresh_token()
+
                 _LOGGER.debug(
                     "Cached token keys: %s", list(tokens.keys()) if tokens else None
                 )
@@ -349,6 +356,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "has_refresh_token": tokens.get("refresh_token") is not None
                         if tokens
                         else False,
+                        "has_azure_refresh_token": azure_refresh_token is not None,
                     },
                 )
 
@@ -364,6 +372,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     or bose_person_id is None
                     or tokens.get("access_token") is None
                     or tokens.get("refresh_token") is None
+                    or azure_refresh_token is None
                 ):
                     _LOGGER.error("Token validation failed - missing required tokens")
                     errors["base"] = "auth_failed"
@@ -392,6 +401,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             "mail": mail,
                             "access_token": tokens.get("access_token"),
                             "refresh_token": tokens.get("refresh_token"),
+                            "azure_refresh_token": azure_refresh_token,
                             "bose_person_id": bose_person_id,
                         },
                     )
