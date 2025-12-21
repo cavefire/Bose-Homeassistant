@@ -159,6 +159,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         accessories = []
     hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
 
+    hass.async_create_background_task(
+        reconnection_monitor(hass, config_entry, auth),
+        "Bose reconnection monitor",
+    )
+
     # Forward to media player platform
     await hass.config_entries.async_forward_entry_setups(
         config_entry,
@@ -262,6 +267,108 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                 f"Refresh token invalid for {config_entry.data['mail']}"
             ) from e
     return False
+
+
+async def reconnection_monitor(
+    hass: HomeAssistant, config_entry: ConfigEntry, auth: BoseAuth
+):
+    """Monitor speaker connection and attempt reconnection via mDNS if offline."""
+    CHECK_INTERVAL = 30
+    RECONNECT_DELAY = 10
+
+    while True:
+        await asyncio.sleep(CHECK_INTERVAL)
+
+        if not hass.config_entries.async_get_entry(config_entry.entry_id):
+            _LOGGER.debug("Config entry removed, stopping reconnection monitor")
+            break
+
+        speaker = hass.data[DOMAIN].get(config_entry.entry_id, {}).get("speaker")
+        if not speaker:
+            _LOGGER.debug("Speaker object not found, stopping reconnection monitor")
+            break
+
+        if not speaker.is_connected():
+            _LOGGER.warning(
+                "Speaker %s is disconnected, attempting reconnection via mDNS discovery",
+                config_entry.data.get("guid"),
+            )
+
+            await asyncio.sleep(RECONNECT_DELAY)
+
+            try:
+                discovered = await config_flow.Discover_Bose_Devices(hass)
+                found = False
+
+                for device in discovered:
+                    if device["guid"] == config_entry.data["guid"]:
+                        current_ip = config_entry.data.get("ip")
+                        new_ip = device["ip"]
+
+                        if current_ip != new_ip:
+                            _LOGGER.info(
+                                "Device %s found with new IP %s (was %s), updating configuration",
+                                config_entry.data["guid"],
+                                new_ip,
+                                current_ip,
+                            )
+                            hass.config_entries.async_update_entry(
+                                config_entry,
+                                data={**config_entry.data, "ip": new_ip},
+                            )
+                        else:
+                            _LOGGER.info(
+                                "Device %s found at same IP %s, attempting reconnection",
+                                config_entry.data["guid"],
+                                current_ip,
+                            )
+
+                        new_speaker = await connect_to_bose(
+                            hass,
+                            hass.config_entries.async_get_entry(config_entry.entry_id)
+                            or config_entry,
+                            auth,
+                        )
+
+                        if new_speaker:
+                            try:
+                                await speaker.disconnect()
+                            except Exception:  # noqa: BLE001
+                                pass
+
+                            hass.data[DOMAIN][config_entry.entry_id][
+                                "speaker"
+                            ] = new_speaker
+                            coordinator = hass.data[DOMAIN][config_entry.entry_id].get(
+                                "coordinator"
+                            )
+                            if coordinator:
+                                coordinator.speaker = new_speaker
+                                new_speaker.attach_receiver(
+                                    coordinator._cache_message  # noqa: SLF001
+                                )
+
+                            await new_speaker.subscribe()
+
+                            _LOGGER.info(
+                                "Successfully reconnected to device %s at %s",
+                                config_entry.data["guid"],
+                                device["ip"],
+                            )
+                            found = True
+                        break
+
+                if not found:
+                    _LOGGER.warning(
+                        "Device %s not found via mDNS discovery, will retry",
+                        config_entry.data["guid"],
+                    )
+
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception(
+                    "Error during reconnection attempt for %s",
+                    config_entry.data["guid"],
+                )
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
