@@ -1,6 +1,5 @@
 """Support for Bose battery status sensor."""
 
-from pybose import BoseSpeaker
 from pybose.BoseResponse import Battery
 
 from homeassistant.components.binary_sensor import (
@@ -10,6 +9,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from pybose import BoseSpeaker
 
 from .bose.battery import BoseBatteryBase
 from .const import DOMAIN
