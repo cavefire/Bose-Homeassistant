@@ -6,6 +6,7 @@
       "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
       "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details.",
       "no_guid": "Device discovery failed: no GUID found in discovery information.",
+      "no_sources_available": "No sources available to configure. Sources like TV, Optical, and Cinch can be linked to other media players for playback information.",
       "reauth_failed": "Reauthentication failed. Please try removing and re-adding the device.",
       "reauth_successful": "Successfully reauthenticated with your Bose account.",
       "wrong_account": "The account you entered does not match the account used when setting up this device. Please use the same account."
@@ -39,6 +40,25 @@
         "data": {
           "mail": "Email address of your BOSE account",
           "password": "Password of your BOSE account"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Select source to configure",
+        "description": "Choose which source you want to configure. You can link a media player to show playback information and optionally rename the source.",
+        "data": {
+          "source": "Source"
+        }
+      },
+      "configure_source": {
+        "title": "Configure {source_name}",
+        "description": "Configure settings for source: {source_name}",
+        "data": {
+          "rename": "Custom name (optional)",
+          "linked_player": "Linked media player (optional)"
         }
       }
     }

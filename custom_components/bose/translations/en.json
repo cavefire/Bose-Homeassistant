@@ -4,7 +4,8 @@
             "already_configured": "Device is already configured",
             "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password.",
             "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
-            "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details."
+            "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details.",
+            "no_sources_available": "No sources available to configure. Sources like TV, Optical, and Cinch can be linked to other media players for playback information."
         },
         "error": {
             "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
@@ -21,6 +22,25 @@
                     "mail": "Email address of your BOSE account",
                     "manual_ip": "Enter IP address manually",
                     "password": "Password of your BOSE account"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Select source to configure",
+                "description": "Choose which source you want to configure. You can link a media player to show playback information and optionally rename the source.",
+                "data": {
+                    "source": "Source"
+                }
+            },
+            "configure_source": {
+                "title": "Configure {source_name}",
+                "description": "Configure settings for source: {source_name}",
+                "data": {
+                    "rename": "Custom name (optional)",
+                    "linked_player": "Linked media player (optional)"
                 }
             }
         }
