@@ -127,10 +127,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         for key, value in options.items():
             if key.startswith("rename_") and value:
-                source_name = (
-                    key.replace("rename_", "")
-                    .replace("_", " ")
-                )
+                source_name = key.replace("rename_", "").replace("_", " ")
                 for available_source in self._available_sources:
                     if (
                         available_source.replace(" ", "_").replace(":", "_").lower()
@@ -139,12 +136,9 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                         if value != available_source:
                             self._source_renames[available_source] = value
                         break
-            
+
             elif key.startswith("linked_player_") and value:
-                source_name = (
-                    key.replace("linked_player_", "")
-                    .replace("_", " ")
-                )
+                source_name = key.replace("linked_player_", "").replace("_", " ")
                 for available_source in self._available_sources:
                     if (
                         available_source.replace(" ", "_").replace(":", "_").lower()
@@ -213,9 +207,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             elif linked_state.state == "idle":
                 self._attr_state = MediaPlayerState.IDLE
             elif linked_state.state == "off":
-                self._attr_state = (
-                    MediaPlayerState.IDLE
-                )
+                self._attr_state = MediaPlayerState.IDLE
             elif linked_state.state == "buffering":
                 self._attr_state = MediaPlayerState.BUFFERING
 
@@ -579,7 +571,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             if renamed == source:
                 original_source = orig
                 break
-        
+
         # Check if it's a Bluetooth source
         if original_source.startswith("Bluetooth:"):
             device_name = original_source.replace("Bluetooth: ", "")

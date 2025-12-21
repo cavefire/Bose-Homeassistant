@@ -3,7 +3,6 @@
 from pybose.BoseResponse import (
     AudioMode,
     CecSettings,
-    ContentNowPlaying,
     DualMonoSettings,
     RebroadcastLatencyMode,
 )

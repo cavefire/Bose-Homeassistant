@@ -484,16 +484,13 @@ class BoseOptionsFlowHandler(OptionsFlow):
 
         current_options = self.config_entry.options
         source_options = {}
-        
         for source in filtered_sources:
             rename_key = f"rename_{source.replace(' ', '_').replace(':', '_')}"
             custom_name = current_options.get(rename_key)
-            
             if custom_name:
                 display_name = f"{source} ({custom_name})"
             else:
                 display_name = source
-            
             source_options[source] = display_name
 
         data_schema = vol.Schema(
@@ -518,7 +515,9 @@ class BoseOptionsFlowHandler(OptionsFlow):
             current_options = dict(self.config_entry.options)
 
             source_key = f"linked_player_{self._selected_source.replace(' ', '_').replace(':', '_')}"
-            rename_key = f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+            rename_key = (
+                f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+            )
 
             if user_input.get("rename"):
                 current_options[rename_key] = user_input["rename"]
@@ -533,8 +532,12 @@ class BoseOptionsFlowHandler(OptionsFlow):
             return self.async_create_entry(title="", data=current_options)
 
         current_options = self.config_entry.options
-        source_key = f"linked_player_{self._selected_source.replace(' ', '_').replace(':', '_')}"
-        rename_key = f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+        source_key = (
+            f"linked_player_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+        )
+        rename_key = (
+            f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+        )
 
         current_linked_value = current_options.get(source_key)
         current_rename_value = current_options.get(rename_key, "")
