@@ -109,25 +109,27 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     device_registry = dr.async_get(hass)
 
     identifiers = {(DOMAIN, config_entry.data["guid"])}
+    connections = set()
 
     if speaker.has_capability("/network/status"):
         network_status = await speaker.get_network_status()
 
+        primary_name = network_status.get("primary")
         for interface in network_status.get("interfaces", []):
-            if interface.get("state", NetworkStateEnum.DOWN) == NetworkStateEnum.UP:
-                identifiers.add(
-                    (
-                        DOMAIN,
-                        ":".join(
-                            interface.get("macAddress")[i : i + 2]
-                            for i in range(0, 12, 2)
-                        ),
-                    )
-                )
+            if (
+                interface.get("type") == primary_name
+                and interface.get("state", NetworkStateEnum.DOWN) == NetworkStateEnum.UP
+            ):
+                mac_address = interface.get("macAddress", "")
+                if mac_address:
+                    formatted_mac = dr.format_mac(mac_address)
+                    connections.add((dr.CONNECTION_NETWORK_MAC, formatted_mac))
+                break
 
     device_registry.async_get_or_create(
         config_entry_id=config_entry.entry_id,
         identifiers=identifiers,
+        connections=connections,
         manufacturer="Bose",
         name=system_info["name"],
         model=system_info["productName"],

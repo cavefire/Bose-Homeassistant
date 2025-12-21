@@ -124,6 +124,12 @@
       },
       "time_till_full": {
         "name": "Tiempo hasta carga completa"
+      },
+      "wifi_signal": {
+        "name": "Intensidad de señal WiFi"
+      },
+      "wifi_ssid": {
+        "name": "SSID WiFi"
       }
     },
     "switch": {
