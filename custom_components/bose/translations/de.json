@@ -125,6 +125,12 @@
       },
       "time_till_full": {
         "name": "Zeit bis voll"
+      },
+      "wifi_signal": {
+        "name": "WLAN-Signalstärke"
+      },
+      "wifi_ssid": {
+        "name": "WLAN-SSID"
       }
     },
     "switch": {
