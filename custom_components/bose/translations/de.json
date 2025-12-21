@@ -131,6 +131,12 @@
       },
       "wifi_ssid": {
         "name": "WLAN-SSID"
+      },
+      "network_type": {
+        "name": "Netzwerktyp"
+      },
+      "network_ip": {
+        "name": "Netzwerk-IP-Adresse"
       }
     },
     "switch": {

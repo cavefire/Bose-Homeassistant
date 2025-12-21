@@ -130,6 +130,12 @@
       },
       "wifi_ssid": {
         "name": "SSID WiFi"
+      },
+      "network_type": {
+        "name": "Tipo de red"
+      },
+      "network_ip": {
+        "name": "Dirección IP de red"
       }
     },
     "switch": {

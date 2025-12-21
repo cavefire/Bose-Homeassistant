@@ -135,7 +135,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         model=system_info["productName"],
         serial_number=system_info["serialNumber"],
         sw_version=system_info["softwareVersion"],
-        configuration_url=f"https://{config_entry.data['ip']}",
     )
 
     # Store the speaker object separately
