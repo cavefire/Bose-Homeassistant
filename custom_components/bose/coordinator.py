@@ -201,6 +201,19 @@ class BoseCoordinator(DataUpdateCoordinator[BoseCoordinatorData]):
         self._cache_message({"header": {"resource": resource}, "body": result_dict})
         return result_dict
 
+    async def get_network_status(self) -> dict[str, Any]:
+        """Get network status with caching."""
+        resource = "/network/status"
+        cached = self.get_cached_data(resource)
+        if cached is not None:
+            return cached
+
+        _LOGGER.debug("Fetching fresh network status data")
+        result = await self.speaker.get_network_status()
+        result_dict = self._convert_to_dict(result)
+        self._cache_message({"header": {"resource": resource}, "body": result_dict})
+        return result_dict
+
     async def get_active_groups(self) -> list[dict[str, Any]]:
         """Get active groups with caching."""
         resource = "/grouping/activeGroups"

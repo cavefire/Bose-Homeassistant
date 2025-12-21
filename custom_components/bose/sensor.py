@@ -1,7 +1,6 @@
-"""Support for Bose battery and WiFi status sensors."""
+"""Support for Bose battery, WiFi, and network status sensors."""
 
-from pybose import BoseSpeaker
-from pybose.BoseResponse import Battery, WifiStatus
+from pybose.BoseResponse import Battery, NetworkStatus, NetworkTypeEnum, WifiStatus
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -12,8 +11,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from pybose import BoseSpeaker
 
 from .bose.battery import BoseBatteryBase
+from .bose.network import BoseNetworkBase
 from .bose.wifi import BoseWifiBase
 from .const import DOMAIN
 from .entity import BoseBaseEntity
@@ -24,7 +25,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Bose battery and WiFi sensors if supported."""
+    """Set up Bose battery, WiFi, and network sensors if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
     coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
@@ -39,16 +40,38 @@ async def async_setup_entry(
             ]
         )
 
-    if speaker.has_capability("/network/wifi/status"):
+    if speaker.has_capability("/network/status"):
         entities.extend(
             [
-                BoseWifiSignalSensor(speaker, config_entry, hass, coordinator),
-                BoseWifiSsidSensor(speaker, config_entry, hass, coordinator),
+                BoseNetworkTypeSensor(speaker, config_entry, hass, coordinator),
+                BoseNetworkIpSensor(speaker, config_entry, hass, coordinator),
             ]
         )
 
+        try:
+            network_data = await coordinator.get_network_status()
+            network_status = NetworkStatus(network_data)
+            primary_name = network_status.get("primary")
+
+            is_wireless_primary = False
+            for interface in network_status.get("interfaces", []):
+                if interface.get("type") == primary_name:
+                    if interface.get("type") == NetworkTypeEnum.WIRELESS:
+                        is_wireless_primary = True
+                    break
+
+            if is_wireless_primary and speaker.has_capability("/network/wifi/status"):
+                entities.extend(
+                    [
+                        BoseWifiSignalSensor(speaker, config_entry, hass, coordinator),
+                        BoseWifiSsidSensor(speaker, config_entry, hass, coordinator),
+                    ]
+                )
+        except Exception:  # noqa: BLE001
+            pass
+
     if entities:
-        async_add_entities(entities, update_before_add=False)
+        async_add_entities(entities, update_before_add=True)
 
 
 class BoseBatteryLevelSensor(BoseBaseEntity, BoseBatteryBase, SensorEntity):
@@ -173,3 +196,60 @@ class BoseWifiSsidSensor(BoseBaseEntity, BoseWifiBase, SensorEntity):
     def update_from_wifi_status(self, wifi_status: WifiStatus):
         """Update sensor state."""
         self._attr_native_value = wifi_status.get("ssid")
+
+
+class BoseNetworkTypeSensor(BoseBaseEntity, BoseNetworkBase, SensorEntity):
+    """Sensor for primary network type."""
+
+    def __init__(
+        self,
+        speaker: BoseSpeaker,
+        config_entry,
+        hass: HomeAssistant,
+        coordinator,
+    ) -> None:
+        """Initialize network type sensor."""
+        BoseBaseEntity.__init__(self, speaker)
+        BoseNetworkBase.__init__(self, speaker, config_entry, hass, coordinator)
+        self._attr_translation_key = "network_type"
+        self._attr_icon = "mdi:network"
+        self._attr_entity_category = None
+
+    def update_from_network_status(self, network_status: NetworkStatus):
+        """Update sensor state."""
+        primary_name = network_status.get("primary")
+
+        for interface in network_status.get("interfaces", []):
+            if interface.get("type") == primary_name:
+                network_type = interface.get("type", "UNKNOWN")
+                if network_type == NetworkTypeEnum.WIRELESS:
+                    self._attr_native_value = "WiFi"
+                elif network_type == NetworkTypeEnum.WIRED_ETH:
+                    self._attr_native_value = "Ethernet"
+                elif network_type == NetworkTypeEnum.WIRED_USB:
+                    self._attr_native_value = "USB"
+                else:
+                    self._attr_native_value = str(network_type)
+                break
+
+
+class BoseNetworkIpSensor(BoseBaseEntity, BoseNetworkBase, SensorEntity):
+    """Sensor for primary network IP address."""
+
+    def __init__(
+        self,
+        speaker: BoseSpeaker,
+        config_entry,
+        hass: HomeAssistant,
+        coordinator,
+    ) -> None:
+        """Initialize network IP sensor."""
+        BoseBaseEntity.__init__(self, speaker)
+        BoseNetworkBase.__init__(self, speaker, config_entry, hass, coordinator)
+        self._attr_translation_key = "network_ip"
+        self._attr_icon = "mdi:ip-network"
+        self._attr_entity_category = None
+
+    def update_from_network_status(self, network_status: NetworkStatus):
+        """Update sensor state."""
+        self._attr_native_value = network_status.get("primaryIpAddress")
