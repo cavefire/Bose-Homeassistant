@@ -43,6 +43,25 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seleziona sorgente da configurare",
+        "description": "Scegli quale sorgente desideri configurare. Puoi collegare un lettore multimediale per mostrare le informazioni di riproduzione e rinominare facoltativamente la sorgente.",
+        "data": {
+          "source": "Sorgente"
+        }
+      },
+      "configure_source": {
+        "title": "Configura {source_name}",
+        "description": "Configura le impostazioni per la sorgente: {source_name}",
+        "data": {
+          "rename": "Nome personalizzato (facoltativo)",
+          "linked_player": "Lettore multimediale collegato (facoltativo)"
+        }
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "charging_state": {

@@ -1,5 +1,7 @@
 """Config flow for Bose integration."""
 
+from typing import Any
+
 from pybose.BoseAuth import BoseAuth
 from pybose.BoseDiscovery import BoseDiscovery
 from pybose.BoseSpeaker import BoseSpeaker
@@ -7,9 +9,9 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 import homeassistant.components.zeroconf
-from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import translation as translation_helper
+from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import selector, translation as translation_helper
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import _LOGGER, DOMAIN
@@ -47,6 +49,14 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._auth = None
         self._discovered_device = None
         self._reauth_entry = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OptionsFlow:
+        """Get the options flow for this handler."""
+        return BoseOptionsFlowHandler(config_entry)
 
     async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle the initial step."""
@@ -427,4 +437,131 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "device_name": self._reauth_entry.data.get("name", "Bose Device"),
             },
+        )
+
+
+class BoseOptionsFlowHandler(OptionsFlow):
+    """Handle options flow for the Bose integration."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._original_sources: list[str] = []
+        self._selected_source: str | None = None
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Select which source to configure."""
+        if user_input is not None:
+            self._selected_source = user_input["source"]
+            return await self.async_step_configure_source()
+
+        try:
+            media_player = self.hass.data[DOMAIN]["media_entities"].get(
+                self.config_entry.data.get("guid")
+            )
+
+            if media_player:
+                self._original_sources = media_player.get_original_sources()
+            else:
+                _LOGGER.warning("Media player not found for options flow")
+                self._original_sources = []
+
+        except (KeyError, AttributeError) as err:
+            _LOGGER.error("Failed to get available sources: %s", err)
+            self._original_sources = []
+
+        filtered_sources = [
+            source
+            for source in self._original_sources
+            if not source.startswith("Bluetooth:")
+            and source != "Chromecast built-in"
+            and not source.startswith("Spotify:")
+        ]
+
+        if not filtered_sources:
+            return self.async_abort(reason="no_sources_available")
+
+        current_options = self.config_entry.options
+        source_options = {}
+        
+        for source in filtered_sources:
+            rename_key = f"rename_{source.replace(' ', '_').replace(':', '_')}"
+            custom_name = current_options.get(rename_key)
+            
+            if custom_name:
+                display_name = f"{source} ({custom_name})"
+            else:
+                display_name = source
+            
+            source_options[source] = display_name
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("source"): vol.In(source_options),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=data_schema,
+        )
+
+    async def async_step_configure_source(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Configure rename and linked media player for selected source."""
+        if not self._selected_source:
+            return await self.async_step_init()
+
+        if user_input is not None:
+            current_options = dict(self.config_entry.options)
+
+            source_key = f"linked_player_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+            rename_key = f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+
+            if user_input.get("rename"):
+                current_options[rename_key] = user_input["rename"]
+            elif rename_key in current_options:
+                del current_options[rename_key]
+
+            if user_input.get("linked_player"):
+                current_options[source_key] = user_input["linked_player"]
+            elif source_key in current_options:
+                del current_options[source_key]
+
+            return self.async_create_entry(title="", data=current_options)
+
+        current_options = self.config_entry.options
+        source_key = f"linked_player_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+        rename_key = f"rename_{self._selected_source.replace(' ', '_').replace(':', '_')}"
+
+        current_linked_value = current_options.get(source_key)
+        current_rename_value = current_options.get(rename_key, "")
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    "rename",
+                    description={"suggested_value": current_rename_value},
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        type=selector.TextSelectorType.TEXT,
+                    )
+                ),
+                vol.Optional(
+                    "linked_player",
+                    description={"suggested_value": current_linked_value},
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain="media_player",
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="configure_source",
+            data_schema=data_schema,
+            description_placeholders={"source_name": self._selected_source},
         )

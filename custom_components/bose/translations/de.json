@@ -6,6 +6,7 @@
       "connect_failed": "Verbindung zum Lautsprecher fehlgeschlagen. Prüfe, ob der Lautsprecher eingeschaltet und verbunden ist und ob die IP‑Adresse korrekt ist.",
       "info_failed": "Verbindung zum Gerät hergestellt, aber das Abrufen der Lautsprecherinformationen ist fehlgeschlagen. Prüf die Protokolle für mehr Informationen.",
       "no_guid": "Geräteerkennung fehlgeschlagen: Keine GUID in den Erkennungsinformationen gefunden.",
+      "no_sources_available": "Keine Quellen zum Konfigurieren verfügbar. Quellen wie TV, Optical und Cinch können mit anderen Media-Playern für Wiedergabeinformationen verknüpft werden.",
       "reauth_failed": "Erneute Authentifizierung fehlgeschlagen. Bitte versuche, das Gerät zu entfernen und erneut hinzuzufügen.",
       "reauth_successful": "Erfolgreich mit deinem Bose-Konto erneut authentifiziert.",
       "wrong_account": "Das eingegebene Konto stimmt nicht mit dem Konto überein, das beim Einrichten dieses Geräts verwendet wurde. Bitte verwende dasselbe Konto."
@@ -39,6 +40,25 @@
         "data": {
           "mail": "E‑Mail‑Adresse deines BOSE‑Kontos",
           "password": "Passwort deines BOSE‑Kontos"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Quelle zum Konfigurieren auswählen",
+        "description": "Wähle die Quelle aus, die du konfigurieren möchtest. Du kannst einen Media-Player verknüpfen, um Wiedergabeinformationen anzuzeigen, und optional die Quelle umbenennen.",
+        "data": {
+          "source": "Quelle"
+        }
+      },
+      "configure_source": {
+        "title": "{source_name} konfigurieren",
+        "description": "Einstellungen für Quelle konfigurieren: {source_name}",
+        "data": {
+          "rename": "Benutzerdefinierter Name (optional)",
+          "linked_player": "Verknüpfter Media-Player (optional)"
         }
       }
     }

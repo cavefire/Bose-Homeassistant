@@ -97,6 +97,9 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._chromecast_device = None
         self._media_controller = None
         self._speaker_ip = config_entry.data.get("ip")
+        self._linked_media_players: dict[str, str] = {}
+        self._source_renames: dict[str, str] = {}
+        self._config_entry = config_entry
 
         speaker.attach_receiver(self.parse_message)
 
@@ -107,6 +110,149 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         hass.data[DOMAIN]["media_entities"][system_info.get("guid")] = self
 
         hass.async_create_task(self._async_setup_chromecast())
+
+        self._load_linked_media_players()
+
+        config_entry.async_on_unload(
+            config_entry.add_update_listener(self._async_options_updated)
+        )
+
+        self._setup_linked_player_listeners()
+
+    def _load_linked_media_players(self) -> None:
+        """Load linked media players and source renames from config entry options."""
+        options = self._config_entry.options
+        self._linked_media_players = {}
+        self._source_renames = {}
+
+        for key, value in options.items():
+            if key.startswith("rename_") and value:
+                source_name = (
+                    key.replace("rename_", "")
+                    .replace("_", " ")
+                )
+                for available_source in self._available_sources:
+                    if (
+                        available_source.replace(" ", "_").replace(":", "_").lower()
+                        == source_name.lower()
+                    ):
+                        if value != available_source:
+                            self._source_renames[available_source] = value
+                        break
+            
+            elif key.startswith("linked_player_") and value:
+                source_name = (
+                    key.replace("linked_player_", "")
+                    .replace("_", " ")
+                )
+                for available_source in self._available_sources:
+                    if (
+                        available_source.replace(" ", "_").replace(":", "_").lower()
+                        == source_name.lower()
+                    ):
+                        self._linked_media_players[available_source] = value
+                        break
+
+        _LOGGER.debug("Loaded linked media players: %s", self._linked_media_players)
+        _LOGGER.debug("Loaded source renames: %s", self._source_renames)
+
+    def _get_source_display_name(self, source: str) -> str:
+        """Get display name for a source (renamed if configured, otherwise original)."""
+        return self._source_renames.get(source, source)
+
+    def get_original_sources(self) -> list[str]:
+        """Get list of original source names (without renames)."""
+        return list(self._attr_source_list)
+
+    def _setup_linked_player_listeners(self) -> None:
+        """Setup state change listeners for linked media players."""
+        from homeassistant.core import callback
+        from homeassistant.helpers.event import async_track_state_change_event
+
+        @callback
+        def _linked_player_state_changed(event):
+            """Handle state change of linked media player."""
+            entity_id = event.data.get("entity_id")
+            if entity_id in self._linked_media_players.values():
+                for source, linked_entity in self._linked_media_players.items():
+                    if linked_entity == entity_id and self._attr_source == source:
+                        self._update_from_linked_media_player(entity_id)
+                        self.async_write_ha_state()
+                        break
+
+        if self._linked_media_players:
+            self._config_entry.async_on_unload(
+                async_track_state_change_event(
+                    self.hass,
+                    list(self._linked_media_players.values()),
+                    _linked_player_state_changed,
+                )
+            )
+
+    async def _async_options_updated(
+        self, hass: HomeAssistant, config_entry: ConfigEntry
+    ) -> None:
+        """Handle options update."""
+        self._load_linked_media_players()
+        self._setup_linked_player_listeners()
+        await self.async_update()
+        self.async_write_ha_state()
+
+    def _update_from_linked_media_player(self, entity_id: str) -> None:
+        """Update playback information from a linked media player."""
+        try:
+            linked_state = self.hass.states.get(entity_id)
+            if linked_state is None:
+                _LOGGER.debug("Linked media player %s not found", entity_id)
+                return
+
+            if linked_state.state == "playing":
+                self._attr_state = MediaPlayerState.PLAYING
+            elif linked_state.state == "paused":
+                self._attr_state = MediaPlayerState.PAUSED
+            elif linked_state.state == "idle":
+                self._attr_state = MediaPlayerState.IDLE
+            elif linked_state.state == "off":
+                self._attr_state = (
+                    MediaPlayerState.IDLE
+                )
+            elif linked_state.state == "buffering":
+                self._attr_state = MediaPlayerState.BUFFERING
+
+            self._attr_media_title = linked_state.attributes.get("media_title")
+            self._attr_media_artist = linked_state.attributes.get("media_artist")
+            self._attr_media_album_name = linked_state.attributes.get(
+                "media_album_name"
+            )
+
+            duration = linked_state.attributes.get("media_duration")
+            if duration is not None:
+                self._attr_media_duration = duration
+
+            position = linked_state.attributes.get("media_position")
+            if position is not None:
+                self._attr_media_position = position
+                self._attr_media_position_updated_at = (
+                    linked_state.attributes.get("media_position_updated_at")
+                    or dt_util.utcnow()
+                )
+
+            self._attr_media_image_url = linked_state.attributes.get(
+                "entity_picture"
+            ) or linked_state.attributes.get("media_image_url")
+
+            _LOGGER.debug(
+                "Updated from linked player %s: state=%s, title=%s, duration=%s, position=%s",
+                entity_id,
+                self._attr_state,
+                self._attr_media_title,
+                self._attr_media_duration,
+                self._attr_media_position,
+            )
+        except (AttributeError, KeyError) as err:
+            _LOGGER.debug(
+                "Failed to get playback info from linked player %s: %s", entity_id, err
+            )
 
     def parse_message(self, data):
         """Parse the message from the speaker."""
@@ -187,34 +333,19 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         except AttributeError:
             self._attr_state = MediaPlayerState.ON
 
+        self._now_playing_result: ContentNowPlaying = data
         self._attr_source = data.get("source", {}).get("sourceDisplayName", None)
 
         if self._attr_source == "Chromecast Built-in":
             return
 
-        self._attr_media_title = data.get("metadata", {}).get("trackName")
-        self._attr_media_artist = data.get("metadata", {}).get("artist")
-        self._attr_media_album_name = data.get("metadata", {}).get("album")
-        self._attr_media_duration = int(data.get("metadata", {}).get("duration", 999))
-        self._attr_media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
-        self._attr_media_position_updated_at = dt_util.utcnow()
-
-        self._now_playing_result: ContentNowPlaying = data
-
+        # Handle special case for TV source (needs to be determined before linked player check)
         if (
             data.get("container", {}).get("contentItem", {}).get("source") == "PRODUCT"
             and data.get("container", {}).get("contentItem", {}).get("sourceAccount")
             == "TV"
         ):
             self._attr_source = "TV"
-            self._attr_media_title = "TV"
-            self._attr_media_album_name = None
-            self._attr_media_artist = None
-            self._attr_media_duration = None
-            self._attr_media_position = None
-        self._attr_media_image_url = (
-            data.get("track", {}).get("contentItem", {}).get("containerArt")
-        )
 
         if data.get("source", {}).get("sourceID") == "BLUETOOTH":
             # Fetch active Bluetooth device asynchronously to avoid using await in sync parser
@@ -239,6 +370,29 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
                     self._attr_source = name
                     break
+
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            self._update_from_linked_media_player(linked_entity_id)
+            return
+
+        self._attr_media_title = data.get("metadata", {}).get("trackName")
+        self._attr_media_artist = data.get("metadata", {}).get("artist")
+        self._attr_media_album_name = data.get("metadata", {}).get("album")
+        self._attr_media_duration = int(data.get("metadata", {}).get("duration", 999))
+        self._attr_media_position = int(data.get("state", {}).get("timeIntoTrack", 0))
+        self._attr_media_position_updated_at = dt_util.utcnow()
+        self._attr_media_image_url = (
+            data.get("track", {}).get("contentItem", {}).get("containerArt")
+        )
+
+        if self._attr_source == "TV":
+            self._attr_media_title = "TV"
+            self._attr_media_album_name = None
+            self._attr_media_artist = None
+            self._attr_media_duration = None
+            self._attr_media_position = None
+            self._attr_media_image_url = None
 
     def _parse_bluetooth_sink_list(self, data: BluetoothSinkList) -> None:
         """Parse Bluetooth sink list."""
@@ -410,19 +564,31 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         active_groups = await self.coordinator.get_active_groups()
         self._parse_grouping({"activeGroups": active_groups})
+
+        if self._has_linked_media_player():
+            linked_entity_id = self._linked_media_players.get(self._attr_source)
+            if linked_entity_id:
+                self._update_from_linked_media_player(linked_entity_id)
+
         self.async_write_ha_state()
 
     async def async_select_source(self, source: str) -> None:
         """Select an input source on the speaker."""
+        original_source = source
+        for orig, renamed in self._source_renames.items():
+            if renamed == source:
+                original_source = orig
+                break
+        
         # Check if it's a Bluetooth source
-        if source.startswith("Bluetooth:"):
-            device_name = source.replace("Bluetooth: ", "")
+        if original_source.startswith("Bluetooth:"):
+            device_name = original_source.replace("Bluetooth: ", "")
             # Find the device by name
             for device in self._bluetooth_devices.values():
                 if device["name"] == device_name:
                     try:
                         await self.speaker.connect_bluetooth_sink_device(device["mac"])
-                        self._attr_source = source
+                        self._attr_source = original_source
                         self.async_write_ha_state()
                     except (ConnectionError, TimeoutError) as err:
                         raise ServiceValidationError(
@@ -441,10 +607,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             )
 
         # Handle regular sources
-        if source not in self._available_sources:
+        if original_source not in self._available_sources:
             return
 
-        source_data = self._available_sources[source]
+        source_data = self._available_sources[original_source]
 
         if not source_data.get("source") or not source_data.get("sourceAccount"):
             raise ServiceValidationError(
@@ -492,28 +658,78 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     async def async_media_play(self) -> None:
         """Play the current media."""
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "media_play",
+                {"entity_id": linked_entity_id},
+                blocking=True,
+            )
+            return
+
         await self.speaker.play()
         self._attr_state = MediaPlayerState.PLAYING
         self.async_write_ha_state()
 
     async def async_media_pause(self) -> None:
         """Pause the current media."""
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "media_pause",
+                {"entity_id": linked_entity_id},
+                blocking=True,
+            )
+            return
+
         await self.speaker.pause()
         self._attr_state = MediaPlayerState.PAUSED
         self.async_write_ha_state()
 
     async def async_media_next_track(self) -> None:
         """Skip to the next track."""
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "media_next_track",
+                {"entity_id": linked_entity_id},
+                blocking=True,
+            )
+            return
+
         await self.speaker.skip_next()
         self.async_write_ha_state()
 
     async def async_media_previous_track(self) -> None:
         """Skip to the previous track."""
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "media_previous_track",
+                {"entity_id": linked_entity_id},
+                blocking=True,
+            )
+            return
+
         await self.speaker.skip_previous()
         self.async_write_ha_state()
 
     async def async_media_seek(self, position: float) -> None:
         """Seek the media to a specific location."""
+        linked_entity_id = self._linked_media_players.get(self._attr_source)
+        if linked_entity_id:
+            await self.hass.services.async_call(
+                "media_player",
+                "media_seek",
+                {"entity_id": linked_entity_id, "seek_position": position},
+                blocking=True,
+            )
+            return
+
         await self.speaker.seek(position)
         self.async_write_ha_state()
 
@@ -757,14 +973,37 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 self._active_group_id, [self._device_id]
             )
 
+    def _has_linked_media_player(self) -> bool:
+        """Check if current source has a linked media player."""
+        return self._attr_source in self._linked_media_players
+
+    @property
+    def should_poll(self) -> bool:
+        """Return True if entity has to be polled for state.
+
+        Poll more frequently when a linked media player is active to keep
+        position and state in sync.
+        """
+        return self._has_linked_media_player()
+
+    @property
+    def source(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return the current input source with renamed display name."""
+        if self._attr_source is None:
+            return None
+        return self._get_source_display_name(self._attr_source)
+
     @property
     def source_list(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the list of available input sources."""
+        renamed_list = [
+            self._get_source_display_name(source) for source in self._attr_source_list
+        ]
 
         if self._attr_source == "Chromecast built-in":
-            return ["Chromecast built-in"] + self._attr_source_list
+            return ["Chromecast built-in"] + renamed_list
 
-        return self._attr_source_list
+        return renamed_list
 
     @property
     def supported_features(self) -> MediaPlayerEntityFeature:  # pyright: ignore[reportIncompatibleVariableOverride]

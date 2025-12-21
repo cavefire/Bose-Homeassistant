@@ -43,6 +43,25 @@
       }
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seleccionar fuente para configurar",
+        "description": "Elige qué fuente deseas configurar. Puedes vincular un reproductor multimedia para mostrar información de reproducción y, opcionalmente, cambiar el nombre de la fuente.",
+        "data": {
+          "source": "Fuente"
+        }
+      },
+      "configure_source": {
+        "title": "Configurar {source_name}",
+        "description": "Configurar ajustes para la fuente: {source_name}",
+        "data": {
+          "rename": "Nombre personalizado (opcional)",
+          "linked_player": "Reproductor multimedia vinculado (opcional)"
+        }
+      }
+    }
+  },
   "entity": {
     "binary_sensor": {
       "charging_state": {
