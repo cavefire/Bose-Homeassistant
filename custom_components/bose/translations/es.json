@@ -6,6 +6,7 @@
       "connect_failed": "No se pudo conectar con el altavoz. Asegúrate de que el altavoz esté encendido, conectado y que la dirección IP sea correcta.",
       "info_failed": "Conexión con el dispositivo establecida, pero la obtención de información del altavoz ha fallado. Revisa los registros para más detalles.",
       "no_guid": "Descubrimiento del dispositivo fallido: no se encontró GUID en la información de descubrimiento.",
+      "no_sources_available": "No hay fuentes disponibles para configurar. Las fuentes como TV, Optical y Cinch se pueden vincular a otros reproductores multimedia para obtener información de reproducción.",
       "reauth_failed": "Reautenticación fallida. Por favor, intenta eliminar y volver a agregar el dispositivo.",
       "reauth_successful": "Reautenticado exitosamente con tu cuenta Bose.",
       "wrong_account": "La cuenta que ingresaste no coincide con la cuenta utilizada al configurar este dispositivo. Por favor, usa la misma cuenta."
@@ -46,7 +47,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Seleccionar fuente para configurar",
+        "title": "Menú de configuración",
+        "description": "Elige qué deseas configurar. Estas son opciones avanzadas y pueden dejarse en los valores predeterminados ya que se pueden cambiar más tarde.",
+        "menu_options": {
+          "source_settings": "Configuración de fuentes",
+          "connectivity_settings": "Configuración de conectividad",
+          "complete_setup": "Completar configuración"
+        }
+      },
+      "source_settings": {
+        "title": "Configuración de fuentes",
         "description": "Elige qué fuente deseas configurar. Puedes vincular un reproductor multimedia para mostrar información de reproducción y, opcionalmente, cambiar el nombre de la fuente.",
         "data": {
           "source": "Fuente"
@@ -58,6 +68,16 @@
         "data": {
           "rename": "Nombre personalizado (opcional)",
           "linked_player": "Reproductor multimedia vinculado (opcional)"
+        }
+      },
+      "connectivity_settings": {
+        "title": "Configuración de conectividad",
+        "description": "Configura las funciones de conectividad de tu dispositivo Bose",
+        "data": {
+          "chromecast_auto_enable": "Activar automáticamente Chromecast integrado al conectar"
+        },
+        "data_description": {
+          "chromecast_auto_enable": "Cuando está habilitado, la funcionalidad de Chromecast se activará automáticamente al conectarse al dispositivo. ¡Chromecast es necesario para TTS y reproducción de medios a través de la entidad del reproductor multimedia!"
         }
       }
     }

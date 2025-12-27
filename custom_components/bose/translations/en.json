@@ -5,7 +5,11 @@
             "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password.",
             "connect_failed": "Failed to connect to the speaker. Make sure the speaker is powered on, connected, and that the IP address is correct.",
             "info_failed": "Connection to the device established, but retrieving speaker information failed. Check the logs for more details.",
-            "no_sources_available": "No sources available to configure. Sources like TV, Optical, and Cinch can be linked to other media players for playback information."
+            "no_guid": "Device discovery failed: no GUID found in discovery information.",
+            "no_sources_available": "No sources available to configure. Sources like TV, Optical, and Cinch can be linked to other media players for playback information.",
+            "reauth_failed": "Reauthentication failed. Please try removing and re-adding the device.",
+            "reauth_successful": "Successfully reauthenticated with your Bose account.",
+            "wrong_account": "The account you entered does not match the account used when setting up this device. Please use the same account."
         },
         "error": {
             "auth_failed": "Authentication with your BOSE account failed. Please check your email address and password."
@@ -23,13 +27,70 @@
                     "manual_ip": "Enter IP address manually",
                     "password": "Password of your BOSE account"
                 }
+            },
+            "zeroconf_confirm": {
+                "description": "A Bose device ({name}) was discovered at {ip}. Enter your Bose account credentials to set it up.",
+                "data": {
+                    "mail": "Email address of your BOSE account",
+                    "password": "Password of your BOSE account"
+                }
+            },
+            "reauth_confirm": {
+                "description": "The authentication for your Bose device ({device_name}) has expired. Please re-enter your credentials to continue using the device.",
+                "data": {
+                    "mail": "Email address of your BOSE account",
+                    "password": "Password of your BOSE account"
+                }
+            },
+            "options_menu": {
+                "title": "Advanced configuration",
+                "description": "These are advanced options and can be left at default since they can be changed later. Choose what you want to configure or complete the setup to finish.",
+                "menu_options": {
+                    "source_settings_initial": "Source settings",
+                    "connectivity_settings_initial": "Connectivity settings",
+                    "complete_setup_initial": "Complete setup"
+                }
+            },
+            "source_settings_initial": {
+                "title": "Source settings",
+                "description": "Choose which source you want to configure. You can link a media player to show playback information and optionally rename the source.",
+                "data": {
+                    "source": "Source"
+                }
+            },
+            "configure_source_initial": {
+                "title": "Configure {source_name}",
+                "description": "Configure settings for source: {source_name}",
+                "data": {
+                    "rename": "Custom name (optional)",
+                    "linked_player": "Linked media player (optional)"
+                }
+            },
+            "connectivity_settings_initial": {
+                "title": "Connectivity settings",
+                "description": "Configure connectivity features for your Bose device",
+                "data": {
+                    "chromecast_auto_enable": "Automatically enable Chromecast built-in on connection"
+                },
+                "data_description": {
+                    "chromecast_auto_enable": "When enabled, Chromecast functionality will be automatically activated when connecting to the device. Chromecast is needed for TTS and media playback via the media player entity!"
+                }
             }
         }
     },
     "options": {
         "step": {
             "init": {
-                "title": "Select source to configure",
+                "title": "Configuration menu",
+                "description": "Choose what you want to configure. These are advanced options and can be left at default since they can be changed later.",
+                "menu_options": {
+                    "source_settings": "Source settings",
+                    "connectivity_settings": "Connectivity settings",
+                    "complete_setup": "Complete setup"
+                }
+            },
+            "source_settings": {
+                "title": "Source settings",
                 "description": "Choose which source you want to configure. You can link a media player to show playback information and optionally rename the source.",
                 "data": {
                     "source": "Source"
@@ -41,6 +102,16 @@
                 "data": {
                     "rename": "Custom name (optional)",
                     "linked_player": "Linked media player (optional)"
+                }
+            },
+            "connectivity_settings": {
+                "title": "Connectivity settings",
+                "description": "Configure connectivity features for your Bose device",
+                "data": {
+                    "chromecast_auto_enable": "Automatically enable Chromecast built-in on connection"
+                },
+                "data_description": {
+                    "chromecast_auto_enable": "When enabled, Chromecast functionality will be automatically activated when connecting to the device. Chromecast is needed for TTS and media playback via the media player entity!"
                 }
             }
         }

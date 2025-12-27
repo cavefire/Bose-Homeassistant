@@ -47,7 +47,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Select source to configure",
+        "title": "Configuration menu",
+        "description": "Choose what you want to configure. These are advanced options and can be left at default since they can be changed later.",
+        "menu_options": {
+          "source_settings": "Source settings",
+          "connectivity_settings": "Connectivity settings",
+          "complete_setup": "Complete setup"
+        }
+      },
+      "source_settings": {
+        "title": "Source settings",
         "description": "Choose which source you want to configure. You can link a media player to show playback information and optionally rename the source.",
         "data": {
           "source": "Source"
@@ -59,6 +68,16 @@
         "data": {
           "rename": "Custom name (optional)",
           "linked_player": "Linked media player (optional)"
+        }
+      },
+      "connectivity_settings": {
+        "title": "Connectivity settings",
+        "description": "Configure connectivity features for your Bose device",
+        "data": {
+          "chromecast_auto_enable": "Automatically enable Chromecast built-in on connection"
+        },
+        "data_description": {
+          "chromecast_auto_enable": "When enabled, Chromecast functionality will be automatically activated when connecting to the device. Chromecast is needed for TTS and media playback via the media player entity!"
         }
       }
     }

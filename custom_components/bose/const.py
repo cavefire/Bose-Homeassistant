@@ -9,5 +9,8 @@ DOMAIN = "bose"
 TOKEN_REFRESH_DELAY = 3600  # seconds
 TOKEN_RETRY_DELAY = 120  # seconds
 
+# Options key for Chromecast auto-enable setting
+CONF_CHROMECAST_AUTO_ENABLE = "chromecast_auto_enable"
+
 
 _LOGGER = logging.getLogger("bose")
