@@ -2,10 +2,11 @@
   "config": {
     "abort": {
       "already_configured": "Il dispositivo è già configurato",
-      "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l’indirizzo email e la password.",
-      "connect_failed": "Connessione all’altoparlante non riuscita. Assicurati che l’altoparlante sia acceso, collegato e che l’indirizzo IP sia corretto.",
+      "auth_failed": "Autenticazione con il tuo account BOSE non riuscita. Controlla l'indirizzo email e la password.",
+      "connect_failed": "Connessione all'altoparlante non riuscita. Assicurati che l'altoparlante sia acceso, collegato e che l'indirizzo IP sia corretto.",
       "info_failed": "Connessione al dispositivo stabilita, ma il recupero delle informazioni dell'altoparlante non è riuscito. Controlla i log per maggiori dettagli.",
       "no_guid": "Rilevamento del dispositivo fallito: nessun GUID trovato nelle informazioni di rilevamento.",
+      "no_sources_available": "Nessuna sorgente disponibile da configurare. Sorgenti come TV, Optical e Cinch possono essere collegate ad altri lettori multimediali per le informazioni di riproduzione.",
       "reauth_failed": "Riautenticazione non riuscita. Prova a rimuovere e aggiungere nuovamente il dispositivo.",
       "reauth_successful": "Riautenticato con successo con il tuo account Bose.",
       "wrong_account": "L'account che hai inserito non corrisponde all'account utilizzato durante la configurazione di questo dispositivo. Utilizza lo stesso account."
@@ -46,7 +47,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Seleziona sorgente da configurare",
+        "title": "Menu di configurazione",
+        "description": "Scegli cosa desideri configurare. Queste sono opzioni avanzate e possono essere lasciate con i valori predefiniti poiché possono essere modificate in seguito.",
+        "menu_options": {
+          "source_settings": "Impostazioni sorgenti",
+          "connectivity_settings": "Impostazioni di connettività",
+          "complete_setup": "Completa configurazione"
+        }
+      },
+      "source_settings": {
+        "title": "Impostazioni sorgenti",
         "description": "Scegli quale sorgente desideri configurare. Puoi collegare un lettore multimediale per mostrare le informazioni di riproduzione e rinominare facoltativamente la sorgente.",
         "data": {
           "source": "Sorgente"
@@ -58,6 +68,16 @@
         "data": {
           "rename": "Nome personalizzato (facoltativo)",
           "linked_player": "Lettore multimediale collegato (facoltativo)"
+        }
+      },
+      "connectivity_settings": {
+        "title": "Impostazioni di connettività",
+        "description": "Configura le funzionalità di connettività del tuo dispositivo Bose",
+        "data": {
+          "chromecast_auto_enable": "Attiva automaticamente Chromecast integrato alla connessione"
+        },
+        "data_description": {
+          "chromecast_auto_enable": "Quando abilitato, la funzionalità Chromecast verrà attivata automaticamente durante la connessione al dispositivo. Chromecast è necessario per TTS e riproduzione multimediale tramite l'entità media player!"
         }
       }
     }
