@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector, translation as translation_helper
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .const import _LOGGER, DOMAIN
+from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN
 
 
 async def Discover_Bose_Devices(hass: HomeAssistant):
@@ -242,6 +242,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "serial": system_info["serialNumber"],
                 "name": system_info["name"],
             },
+            options={CONF_CHROMECAST_AUTO_ENABLE: True},
         )
 
     async def async_step_zeroconf(
@@ -440,6 +441,7 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
+
 class BoseOptionsFlowHandler(OptionsFlow):
     """Handle options flow for the Bose integration."""
 
@@ -451,8 +453,19 @@ class BoseOptionsFlowHandler(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Show main configuration menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["source_settings", "connectivity_settings"],
+        )
+
+    async def async_step_source_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Select which source to configure."""
         if user_input is not None:
+            if user_input.get("source") == "__back__":
+                return await self.async_step_init()
             self._selected_source = user_input["source"]
             return await self.async_step_configure_source()
 
@@ -500,8 +513,9 @@ class BoseOptionsFlowHandler(OptionsFlow):
         )
 
         return self.async_show_form(
-            step_id="init",
+            step_id="source_settings",
             data_schema=data_schema,
+            last_step=False,
         )
 
     async def async_step_configure_source(
@@ -509,7 +523,7 @@ class BoseOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         """Configure rename and linked media player for selected source."""
         if not self._selected_source:
-            return await self.async_step_init()
+            return await self.async_step_source_settings()
 
         if user_input is not None:
             current_options = dict(self.config_entry.options)
@@ -529,7 +543,10 @@ class BoseOptionsFlowHandler(OptionsFlow):
             elif source_key in current_options:
                 del current_options[source_key]
 
-            return self.async_create_entry(title="", data=current_options)
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options=current_options
+            )
+            return await self.async_step_init()
 
         current_options = self.config_entry.options
         source_key = (
@@ -567,4 +584,45 @@ class BoseOptionsFlowHandler(OptionsFlow):
             step_id="configure_source",
             data_schema=data_schema,
             description_placeholders={"source_name": self._selected_source},
+            last_step=False,
         )
+
+    async def async_step_connectivity_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Configure connectivity settings."""
+        if user_input is not None:
+            current_options = dict(self.config_entry.options)
+            current_options[CONF_CHROMECAST_AUTO_ENABLE] = user_input.get(
+                CONF_CHROMECAST_AUTO_ENABLE, True
+            )
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, options=current_options
+            )
+            return await self.async_step_init()
+
+        current_options = self.config_entry.options
+        current_chromecast_setting = current_options.get(
+            CONF_CHROMECAST_AUTO_ENABLE, True
+        )
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_CHROMECAST_AUTO_ENABLE,
+                    default=current_chromecast_setting,
+                ): selector.BooleanSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="connectivity_settings",
+            data_schema=data_schema,
+            last_step=False,
+        )
+
+    async def async_step_complete_setup(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Complete the initial setup."""
+        return self.async_create_entry(title="", data=self.config_entry.options)

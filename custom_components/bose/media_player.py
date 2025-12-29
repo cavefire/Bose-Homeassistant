@@ -32,7 +32,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from .const import _LOGGER, DOMAIN
+from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN
 from .coordinator import BoseCoordinator
 from .entity import BoseBaseEntity
 
@@ -837,7 +837,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                     "Chromecast device not found for Bose speaker at %s",
                     self._speaker_ip,
                 )
-                if not secondTry:
+                auto_enable = self._config_entry.options.get(
+                    CONF_CHROMECAST_AUTO_ENABLE, True
+                )
+                if not secondTry and auto_enable:
                     await self.speaker.set_chromecast(True)
                     # Stop discovery before retrying
                     await self.hass.async_add_executor_job(
@@ -845,6 +848,14 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                     )
                     await self._async_setup_chromecast(True)
                     return
+
+                if not auto_enable:
+                    _LOGGER.debug(
+                        "Chromecast auto-enable is disabled, skipping automatic activation"
+                    )
+                    _LOGGER.info(
+                        "Chromecast is not enabled on the BOSE speaker. Without Chromecast enabled, media playback / TTS will not work. Either enable Chromecast manually via the Bose app, or enable automatic Chromecast activation in the integration options."
+                    )
                 else:
                     _LOGGER.warning(
                         "No Chromecast device found for Bose speaker after enabling Chromecast"
