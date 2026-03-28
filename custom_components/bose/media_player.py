@@ -484,7 +484,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             bluetooth_device = self._bluetooth_devices[active_device]
             self._attr_source = f"Bluetooth: {bluetooth_device['name']}"
             self.async_write_ha_state()
-            self._attr_source_list.append(self._attr_source)
+            if self._attr_source not in self._attr_source_list:
+                self._attr_source_list.append(self._attr_source)
 
     async def async_update(self) -> None:
         """Fetch new state data from the speaker."""
@@ -521,13 +522,15 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         # Refresh available sources (build human readable list)
         sources = await self.coordinator.get_sources()
         for source in sources.get("sources", []):
+            is_available = source.get("status") in ("AVAILABLE", "NOT_CONFIGURED")
+            is_tv_source = (
+                source.get("sourceName") == "PRODUCT"
+                and source.get("sourceAccountName") == "TV"
+            )
             if (
-                (
-                    source.get("status", None) in ("AVAILABLE", "NOT_CONFIGURED")
-                    or source.get("accountId", "TV")
-                )
-                and source.get("sourceAccountName", None)
-                and source.get("sourceName", None)
+                (is_available or is_tv_source)
+                and source.get("sourceAccountName")
+                and source.get("sourceName")
             ):
                 if source.get("sourceName", None) in (
                     "AMAZON",
@@ -600,7 +603,19 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
         # Handle regular sources
         if original_source not in self._available_sources:
-            return
+            _LOGGER.warning(
+                "Source '%s' not found in available sources: %s",
+                original_source,
+                list(self._available_sources.keys()),
+            )
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="source_not_found",
+                translation_placeholders={
+                    "source_name": source,
+                    "available_sources": ", ".join(self._available_sources.keys()),
+                },
+            )
 
         source_data = self._available_sources[original_source]
 
@@ -1034,27 +1049,31 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
             return bool(getattr(state, key, False))
 
-        if not now:
-            return MediaPlayerEntityFeature.PLAY
-
-        return (
+        base_features = (
             MediaPlayerEntityFeature.TURN_OFF
             | MediaPlayerEntityFeature.TURN_ON
+            | MediaPlayerEntityFeature.PLAY
+            | MediaPlayerEntityFeature.VOLUME_SET
+            | MediaPlayerEntityFeature.VOLUME_STEP
+            | MediaPlayerEntityFeature.VOLUME_MUTE
+            | MediaPlayerEntityFeature.GROUPING
+            | MediaPlayerEntityFeature.SELECT_SOURCE
+        )
+
+        if not now:
+            return base_features
+
+        return (
+            base_features
             | (MediaPlayerEntityFeature.NEXT_TRACK if _can("canSkipNext") else 0)
             | (MediaPlayerEntityFeature.PAUSE if _can("canPause") else 0)
-            | MediaPlayerEntityFeature.PLAY
             | (
                 MediaPlayerEntityFeature.PREVIOUS_TRACK
                 if _can("canSkipPrevious")
                 else 0
             )
             | (MediaPlayerEntityFeature.SEEK if _can("canSeek") else 0)
-            | MediaPlayerEntityFeature.VOLUME_SET
-            | MediaPlayerEntityFeature.VOLUME_STEP
-            | MediaPlayerEntityFeature.VOLUME_MUTE
             | (MediaPlayerEntityFeature.STOP if _can("canStop") else 0)
-            | MediaPlayerEntityFeature.GROUPING
-            | MediaPlayerEntityFeature.SELECT_SOURCE
             | (
                 (
                     MediaPlayerEntityFeature.PLAY_MEDIA

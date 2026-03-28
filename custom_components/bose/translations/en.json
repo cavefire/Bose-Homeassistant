@@ -258,6 +258,9 @@
         "source_not_configured": {
             "message": "Source {source_name} is not properly configured"
         },
+        "source_not_found": {
+            "message": "Source {source_name} is not available. Available sources: {available_sources}"
+        },
         "speaker_not_found": {
             "message": "No speaker found for device ID: {device_id}"
         }
