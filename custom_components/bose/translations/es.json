@@ -218,6 +218,9 @@
     "source_not_configured": {
       "message": "La fuente {source_name} no está configurada correctamente."
     },
+    "source_not_found": {
+      "message": "La fuente {source_name} no está disponible. Fuentes disponibles: {available_sources}"
+    },
     "chromecast_not_available": {
       "message": "Funcionalidad de Chromecast no disponible para el altavoz en {speaker_ip}"
     },

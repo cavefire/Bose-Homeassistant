@@ -405,27 +405,24 @@ def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
     """Set up the Bose component."""
 
     async def handle_custom_request(call: ServiceCall) -> ServiceResponse:
-        # Extract device_id from target
-        ha_device_ids = call.data.get("device_id", [])  # Always returns a list
-        if not ha_device_ids:
+        raw_device_id = call.data.get("device_id")
+        _LOGGER.debug(
+            "send_custom_request: device_id=%r (type=%s), all data keys=%s",
+            raw_device_id,
+            type(raw_device_id).__name__,
+            list(call.data.keys()),
+        )
+        if not raw_device_id:
             raise ValueError("No valid target device provided.")
 
-        ha_device_id = ha_device_ids[
-            0
-        ]  # Take the first device in case of multiple selections
+        if isinstance(raw_device_id, list):
+            ha_device_id = raw_device_id[0]
+        else:
+            ha_device_id = str(raw_device_id)
 
         resource = call.data["resource"]
         method = call.data["method"]
         body = call.data.get("body", {})
-
-        # Find the matching speaker instance based on Home Assistant device_id
-        device_registry = dr.async_get(hass)
-        device_entry = device_registry.async_get(ha_device_id)
-
-        if not device_entry:
-            raise ValueError(
-                f"No device found in Home Assistant for device_id: {ha_device_id}"
-            )
 
         device_registry = dr.async_get(hass)
         device_entry = device_registry.async_get(ha_device_id)
