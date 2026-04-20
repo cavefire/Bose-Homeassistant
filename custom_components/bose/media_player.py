@@ -92,6 +92,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
+            "TV": {"source": "PRODUCT", "sourceAccount": "AUX"},
         }
         self._bluetooth_devices: dict[str, dict] = {}
         self._chromecast_device = None
