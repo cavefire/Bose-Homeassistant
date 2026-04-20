@@ -92,6 +92,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             "Optical": {"source": "PRODUCT", "sourceAccount": "AUX_DIGITAL"},
             "Cinch": {"source": "PRODUCT", "sourceAccount": "AUX_ANALOG"},
             "TV": {"source": "PRODUCT", "sourceAccount": "TV"},
+            "AUX": {"source": "PRODUCT", "sourceAccount": "AUX"},
         }
         self._bluetooth_devices: dict[str, dict] = {}
         self._chromecast_device = None
@@ -556,6 +557,12 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                     ):
                         if key not in self._attr_source_list:
                             self._attr_source_list.append(key)
+            elif (
+                source.get("sourceName") == "AUX"
+                and source.get("sourceAccountName") == "AUX"
+            ):
+                if "AUX" not in self._attr_source_list:
+                    self._attr_source_list.append("AUX")
 
         active_groups = await self.coordinator.get_active_groups()
         self._parse_grouping({"activeGroups": active_groups})

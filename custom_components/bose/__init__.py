@@ -73,7 +73,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         # find the devce with the same GUID
         for device in discovered:
             if device["guid"] == config_entry.data["guid"]:
-                _LOGGER.error(
+                _LOGGER.info(
                     "Found device with same GUID, updating IP to: %s", device["ip"]
                 )
                 hass.config_entries.async_update_entry(
@@ -336,9 +336,9 @@ async def reconnection_monitor(
                             except Exception:  # noqa: BLE001
                                 pass
 
-                            hass.data[DOMAIN][config_entry.entry_id][
-                                "speaker"
-                            ] = new_speaker
+                            hass.data[DOMAIN][config_entry.entry_id]["speaker"] = (
+                                new_speaker
+                            )
                             coordinator = hass.data[DOMAIN][config_entry.entry_id].get(
                                 "coordinator"
                             )
