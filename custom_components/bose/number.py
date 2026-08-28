@@ -20,8 +20,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import _LOGGER, DOMAIN
 from .entity import BoseBaseEntity
 
-# Define adjustable sound parameters
-ADJUSTABLE_PARAMETERS = [
+# Common parameters available on all non-Lifestyle Bose speakers
+COMMON_PARAMETERS = [
     {
         "display": "Bass",
         "path": "/audio/bass",
@@ -47,6 +47,14 @@ ADJUSTABLE_PARAMETERS = [
         "step": 10,
     },
     {
+        "display": "Height",
+        "path": "/audio/height",
+        "option": "height",
+        "min": -100,
+        "max": 100,
+        "step": 10,
+    },
+    {
         "display": "Subwoofer Gain",
         "path": "/audio/subwooferGain",
         "option": "subwooferGain",
@@ -64,12 +72,126 @@ ADJUSTABLE_PARAMETERS = [
         "step": 10,
     },
     {
+        "display": "AV Sync",
+        "path": "/audio/avSync",
+        "option": "avSync",
+        "translation_key": "av_sync",
+        "min": 0,
+        "max": 200,
+        "step": 10,
+    },
+]
+
+# Lifestyle (non-Ultra Soundbar) overrides: clamp to -10..10
+LIFESTYLE_PARAMETERS = [
+    {
+        "display": "Bass",
+        "path": "/audio/bass",
+        "option": "bass",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Treble",
+        "path": "/audio/treble",
+        "option": "treble",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Center",
+        "path": "/audio/center",
+        "option": "center",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Sub",
+        "path": "/audio/subwooferGain",
+        "option": "subwooferGain",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
         "display": "Height",
         "path": "/audio/height",
         "option": "height",
-        "min": -100,
-        "max": 100,
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "AV Sync",
+        "path": "/audio/avSync",
+        "option": "avSync",
+        "translation_key": "av_sync",
+        "min": 0,
+        "max": 200,
         "step": 10,
+    },
+]
+
+# Lifestyle Ultra Soundbar: names and order match the Bose app
+LIFESTYLE_ULTRA_SOUNDBAR_PARAMETERS = [
+    {
+        "display": "Treble",
+        "path": "/audio/treble",
+        "option": "treble",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Mids",
+        "path": "/audio/midrange",
+        "option": "midrange",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Bass",
+        "path": "/audio/bass",
+        "option": "bass",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Center",
+        "path": "/audio/center",
+        "option": "center",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Height",
+        "path": "/audio/height",
+        "option": "height",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Surround",
+        "path": "/audio/systemSurroundLevel",
+        "option": "systemSurroundLevel",
+        "min": -10,
+        "max": 10,
+        "step": 1,
+    },
+    {
+        "display": "Sub",
+        "path": "/audio/subwooferGain",
+        "option": "subwooferGain",
+        "min": -10,
+        "max": 10,
+        "step": 1,
     },
     {
         "display": "AV Sync",
@@ -83,6 +205,16 @@ ADJUSTABLE_PARAMETERS = [
 ]
 
 
+def _is_lifestyle(product_name: str) -> bool:
+    """Check if the product is a Bose Lifestyle product."""
+    return "LS" in product_name
+
+
+def _is_lifestyle_ultra_soundbar(product_name: str) -> bool:
+    """Check if the product is a Lifestyle Ultra Soundbar."""
+    return "LS Ultra Soundbar" in product_name
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -94,14 +226,28 @@ async def async_setup_entry(
 
     # Fetch system info
     system_info = await speaker.get_system_info()
+    product_name = system_info.get("productName", "")
+    is_lifestyle = _is_lifestyle(product_name)
+    is_ultra_sb = _is_lifestyle_ultra_soundbar(product_name)
 
-    entities = [
-        BoseAudioSlider(
-            speaker, system_info, config_entry, parameter, hass, coordinator
-        )
-        for parameter in ADJUSTABLE_PARAMETERS
-        if speaker.has_capability(parameter["path"])
-    ]
+    # Pick parameter list based on product type
+    if is_ultra_sb:
+        parameters = LIFESTYLE_ULTRA_SOUNDBAR_PARAMETERS
+    elif is_lifestyle:
+        parameters = LIFESTYLE_PARAMETERS
+    else:
+        parameters = COMMON_PARAMETERS
+
+    entities = []
+    for parameter in parameters:
+        # Lifestyle Ultra Soundbar parameters are known to work via raw API
+        # even though has_capability returns false for some of them
+        if is_ultra_sb or speaker.has_capability(parameter["path"]):
+            entities.append(
+                BoseAudioSlider(
+                    speaker, system_info, config_entry, parameter, hass, coordinator
+                )
+            )
 
     async_add_entities(entities)
 
@@ -161,7 +307,15 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
 
     async def async_update(self) -> None:
         """Fetch the current value of the setting."""
-        audio_dict = await self.coordinator.get_audio_setting(self._option)
+        try:
+            audio_dict = await self.coordinator.get_audio_setting(self._option)
+        except Exception:
+            _LOGGER.debug("pybose rejected %s, trying raw request", self._option)
+            try:
+                audio_dict = await self.speaker._request(self._path, "GET")  # noqa: SLF001
+            except Exception:
+                _LOGGER.warning("Cannot fetch %s via raw request", self._option)
+                return
         self._parse_audio(Audio(audio_dict))
         if self.hass:
             self.async_write_ha_state()
@@ -170,12 +324,18 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
         """Set the new value for the setting."""
         try:
             await self.speaker.set_audio_setting(self._option, int(value))
-            self.async_write_ha_state()
-        except Exception as e:
-            _LOGGER.error(
-                "Failed to set audio setting %s to %s: %s",
-                self._option,
-                value,
-                e,
-            )
-            raise
+        except Exception:
+            _LOGGER.debug("pybose rejected set %s, trying raw request", self._option)
+            try:
+                await self.speaker._request(  # noqa: SLF001
+                    self._path, "POST", {"value": int(value)}
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    "Failed to set audio setting %s to %s: %s",
+                    self._option,
+                    value,
+                    e,
+                )
+                raise
+        self.async_write_ha_state()
