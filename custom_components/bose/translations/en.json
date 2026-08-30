@@ -213,6 +213,9 @@
             },
             "network_ip": {
                 "name": "Network IP Address"
+            },
+            "audio_format": {
+                "name": "Audio Format"
             }
         },
         "switch": {
