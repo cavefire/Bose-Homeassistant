@@ -32,6 +32,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
+from .bose.audioformat import format_audio_codec
 from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN
 from .coordinator import BoseCoordinator
 from .entity import BoseBaseEntity
@@ -83,6 +84,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._attr_media_position = None
         self._attr_media_position_updated_at = None
         self._now_playing_result = ContentNowPlaying({})
+        self._audio_codec = None
+
         self._attr_group_members = []
         self._attr_source_list: list[str] = []
         self._active_group_id = None
@@ -258,8 +261,11 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             self._is_on = body.get("power") == "ON"
             if not self._is_on:
                 self._attr_state = MediaPlayerState.OFF
+                self._audio_codec = None
         elif resource == "/content/nowPlaying":
             self._parse_now_playing(ContentNowPlaying(body))
+        elif resource == "/audio/format":
+            self._parse_audio_format(body)
         elif resource == "/grouping/activeGroups":
             self._parse_grouping(body)
         elif resource == "/bluetooth/sink/list":
@@ -304,6 +310,10 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
     def _parse_audio_volume(self, data: AudioVolume):
         self._attr_volume_level = data.get("value", 0) / 100
         self._attr_is_volume_muted = data.get("muted")
+
+    def _parse_audio_format(self, data: dict) -> None:
+        """Parse the audio format / codec from the speaker."""
+        self._audio_codec = format_audio_codec(data)
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
@@ -1029,6 +1039,11 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             return ["Chromecast built-in"] + renamed_list
 
         return renamed_list
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | None]:
+        """Return the audio codec read from the now playing state."""
+        return {"audio_codec": self._audio_codec}
 
     @property
     def supported_features(self) -> MediaPlayerEntityFeature:  # pyright: ignore[reportIncompatibleVariableOverride]
