@@ -156,9 +156,6 @@
       },
       "network_ip": {
         "name": "Indirizzo IP di rete"
-      },
-      "audio_format": {
-        "name": "Formato audio"
       }
     },
     "switch": {
