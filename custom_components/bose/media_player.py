@@ -448,10 +448,18 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         # Update source list with Bluetooth devices
         self._update_bluetooth_source_list()
 
-        # Update current source if a Bluetooth device is active
-        if active_device and active_device in self._bluetooth_devices:
+        if (
+            self._bluetooth_is_playing()
+            and active_device
+            and active_device in self._bluetooth_devices
+        ):
             bluetooth_device = self._bluetooth_devices[active_device]
             self._attr_source = f"Bluetooth: {bluetooth_device['name']}"
+
+    def _bluetooth_is_playing(self) -> bool:
+        """Return whether now playing reports Bluetooth as the active source."""
+        now_playing = self._now_playing_result or {}
+        return now_playing.get("source", {}).get("sourceID") == "BLUETOOTH"
 
     def _parse_bluetooth_source_status(self, data: BluetoothSourceStatus) -> None:
         """Parse Bluetooth source status."""
@@ -665,6 +673,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
             source_data.get("source", ""), source_data.get("sourceAccount", "")
         )
         self._parse_now_playing(ContentNowPlaying(result))
+        self.async_write_ha_state()
 
     async def async_turn_on(self) -> None:
         """Turn on the speaker."""
