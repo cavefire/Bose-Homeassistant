@@ -194,7 +194,14 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         """Handle options update."""
         self._load_linked_media_players()
         self._setup_linked_player_listeners()
-        await self.async_update()
+        try:
+            await self.async_update()
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning(
+                "Failed to refresh %s after a config entry update",
+                self.entity_id,
+                exc_info=True,
+            )
         self.async_write_ha_state()
 
     def _update_from_linked_media_player(self, entity_id: str) -> None:
