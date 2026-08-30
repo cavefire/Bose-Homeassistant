@@ -13,11 +13,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from pybose import BoseSpeaker
 
-from .bose.audioformat import (
-    AUDIO_FORMAT_RESOURCE,
-    BoseAudioFormatBase,
-    format_audio_codec,
-)
 from .bose.battery import BoseBatteryBase
 from .bose.network import BoseNetworkBase
 from .bose.wifi import BoseWifiBase
@@ -75,33 +70,8 @@ async def async_setup_entry(
         except Exception:  # noqa: BLE001
             pass
 
-    if speaker.has_capability(AUDIO_FORMAT_RESOURCE):
-        entities.append(BoseAudioFormatSensor(speaker, config_entry, hass, coordinator))
-
     if entities:
         async_add_entities(entities, update_before_add=True)
-
-
-class BoseAudioFormatSensor(BoseBaseEntity, BoseAudioFormatBase, SensorEntity):
-    """Sensor for the current audio format / codec."""
-
-    def __init__(
-        self,
-        speaker: BoseSpeaker,
-        config_entry,
-        hass: HomeAssistant,
-        coordinator,
-    ) -> None:
-        """Initialize audio format sensor."""
-        BoseBaseEntity.__init__(self, speaker)
-        BoseAudioFormatBase.__init__(self, speaker, config_entry, hass, coordinator)
-        self._attr_translation_key = "audio_format"
-        self._attr_icon = "mdi:waveform"
-        self._attr_entity_category = None
-
-    def update_from_audio_format(self, body: dict) -> None:
-        """Update sensor state from the audio format body."""
-        self._attr_native_value = format_audio_codec(body)
 
 
 class BoseBatteryLevelSensor(BoseBaseEntity, BoseBatteryBase, SensorEntity):

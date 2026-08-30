@@ -32,10 +32,11 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 import homeassistant.helpers.entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from .bose.audioformat import format_audio_codec
 from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN
 from .coordinator import BoseCoordinator
 from .entity import BoseBaseEntity
+
+AUDIO_FORMAT_RESOURCE = "/audio/format"
 
 
 async def async_setup_entry(
@@ -264,7 +265,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
                 self._audio_codec = None
         elif resource == "/content/nowPlaying":
             self._parse_now_playing(ContentNowPlaying(body))
-        elif resource == "/audio/format":
+        elif resource == AUDIO_FORMAT_RESOURCE:
             self._parse_audio_format(body)
         elif resource == "/grouping/activeGroups":
             self._parse_grouping(body)
@@ -311,9 +312,24 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         self._attr_volume_level = data.get("value", 0) / 100
         self._attr_is_volume_muted = data.get("muted")
 
+    async def _refresh_audio_format(self) -> None:
+        """Read the format the speaker is decoding, if it reports one at all."""
+        if not self.speaker.has_capability(AUDIO_FORMAT_RESOURCE):
+            return
+        try:
+            self._parse_audio_format(await self.coordinator.get_audio_format())
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Failed to get the audio format: %s", err)
+
     def _parse_audio_format(self, data: dict) -> None:
-        """Parse the audio format / codec from the speaker."""
-        self._audio_codec = format_audio_codec(data)
+        """Describe the audio format the speaker is currently decoding."""
+        codec = data.get("format") or data.get("type")
+        if not codec:
+            self._audio_codec = None
+            return
+
+        channels = data.get("channels")
+        self._audio_codec = f"{codec} · {channels}" if channels else codec
 
     def _parse_now_playing(self, data: ContentNowPlaying):
         try:
@@ -507,6 +523,8 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
         volume_dict = await self.coordinator.get_audio_volume()
         volume_data = AudioVolume(volume_dict)
         self._parse_audio_volume(volume_data)
+
+        await self._refresh_audio_format()
 
         # Refresh Bluetooth information
         try:
@@ -1042,7 +1060,7 @@ class BoseMediaPlayer(BoseBaseEntity, MediaPlayerEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, str | None]:
-        """Return the audio codec read from the now playing state."""
+        """Return the audio format the speaker is currently decoding."""
         return {"audio_codec": self._audio_codec}
 
     @property
