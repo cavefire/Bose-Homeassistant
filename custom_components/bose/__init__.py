@@ -13,6 +13,7 @@ from homeassistant.core import (
     ServiceCall,
     ServiceResponse,
     SupportsResponse,
+    callback,
 )
 from homeassistant.exceptions import ConfigEntryAuthFailed, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
@@ -30,8 +31,36 @@ from .coordinator import BoseCoordinator
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
+@callback
+def async_migrate_unique_id(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Give entries created before 1.2.3 the unique id newer entries carry.
+
+    Without it Home Assistant cannot tell that the speaker is already set up, so discovery keeps offering it and adding it again creates a duplicate.
+    """
+    guid = config_entry.data.get("guid")
+    if config_entry.unique_id is not None or not guid:
+        return
+
+    owner = hass.config_entries.async_entry_for_domain_unique_id(DOMAIN, guid)
+    if owner is not None and owner.entry_id != config_entry.entry_id:
+        _LOGGER.warning(
+            "Config entry %s is a duplicate of %s (same speaker %s), remove one of them",
+            config_entry.title,
+            owner.title,
+            guid,
+        )
+        return
+
+    _LOGGER.info(
+        "Adopting %s as unique id of config entry %s", guid, config_entry.title
+    )
+    hass.config_entries.async_update_entry(config_entry, unique_id=guid)
+
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Bose integration from a config entry."""
+    async_migrate_unique_id(hass, config_entry)
+
     auth = BoseAuth()
 
     hass.data.setdefault(DOMAIN, {})

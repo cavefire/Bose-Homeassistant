@@ -1,5 +1,6 @@
 """Config flow for Bose integration."""
 
+import asyncio
 from typing import Any
 
 from pybose.BoseAuth import BoseAuth
@@ -11,10 +12,30 @@ from homeassistant import config_entries
 import homeassistant.components.zeroconf
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import selector, translation as translation_helper
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN, REQUEST_TIMEOUT
+
+# pybose waits for the speaker forever. Without a limit a speaker that never answers keeps the flow hanging, which the frontend reports as "Unknown error occurred" without a single line in the log.
+CONNECT_TIMEOUT = 15
+
+
+async def async_fetch_speaker_info(auth: BoseAuth, ip: str) -> tuple[str, dict]:
+    """Connect to a speaker just long enough to read its identity."""
+    speaker = BoseSpeaker(bose_auth=auth, host=ip, request_timeout=REQUEST_TIMEOUT)
+    try:
+        async with asyncio.timeout(CONNECT_TIMEOUT):
+            await speaker.connect()
+            system_info = await speaker.get_system_info()
+            return speaker.get_device_id(), system_info
+    finally:
+        try:
+            async with asyncio.timeout(5):
+                await speaker.disconnect()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Could not close the connection to %s cleanly", ip)
 
 
 async def Discover_Bose_Devices(hass: HomeAssistant):
@@ -78,6 +99,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ip = user_input["device"]
                 try:
                     return await self._get_device_info(self.mail, self.password, ip)
+                except AbortFlow:
+                    raise
                 except Exception as e:  # noqa: BLE001
                     _LOGGER.exception("Unexpected error", exc_info=e)
                     errors["base"] = "auth_failed"
@@ -128,6 +151,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 return await self._get_device_info(self.mail, self.password, ip)
+            except AbortFlow:
+                raise
             except Exception as e:  # noqa: BLE001
                 _LOGGER.exception("Unexpected error", exc_info=e)
                 errors["base"] = "auth_failed"
@@ -157,6 +182,13 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={"note": manual_note},
         )
 
+    def _entry_for_guid(self, guid: str):
+        """Return the entry set up for a speaker, including entries from before 1.2.3 that carry no unique id yet."""
+        for entry in self._async_current_entries(include_ignore=False):
+            if entry.data.get("guid") == guid:
+                return entry
+        return None
+
     async def _discover_devices(self):
         """Discover devices using BoseDiscovery in an executor."""
         devices = await Discover_Bose_Devices(self.hass)
@@ -180,22 +212,29 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
+        if self._auth is None:
+            return self.async_abort(reason="auth_failed")
+
         try:
-            speaker = BoseSpeaker(  # pyright: ignore[reportArgumentType]
-                bose_auth=self._auth, host=ip, request_timeout=REQUEST_TIMEOUT
+            guid, system_info = await async_fetch_speaker_info(self._auth, ip)
+        except TimeoutError:
+            _LOGGER.error(
+                "The speaker at %s did not answer within %s seconds",
+                ip,
+                CONNECT_TIMEOUT,
             )
-            await speaker.connect()
-            system_info = await speaker.get_system_info()
-            if not system_info:
-                return self.async_abort(reason="info_failed")
+            return self.async_abort(reason="connect_failed")
         except Exception as e:  # noqa: BLE001
             _LOGGER.exception("Failed to get system info", exc_info=e)
             return self.async_abort(reason="connect_failed")
 
-        guid = speaker.get_device_id()
+        if not system_info:
+            return self.async_abort(reason="info_failed")
 
         await self.async_set_unique_id(guid)
         self._abort_if_unique_id_configured()
+        if self._entry_for_guid(guid) is not None:
+            return self.async_abort(reason="already_configured")
 
         if self._auth is None:
             return self.async_abort(reason="auth_failed")
@@ -259,6 +298,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         await self.async_set_unique_id(guid)
         self._abort_if_unique_id_configured(updates={"ip": discovery_info.host})
+        if self._entry_for_guid(guid) is not None:
+            return self.async_abort(reason="already_configured")
 
         self._discovered_device = {
             "ip": discovery_info.host,
@@ -287,6 +328,8 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return await self._get_device_info(
                         self.mail, self.password, self._discovered_device["ip"]
                     )
+                except AbortFlow:
+                    raise
                 except Exception as e:  # noqa: BLE001
                     _LOGGER.exception("Unexpected error", exc_info=e)
                     errors["base"] = "auth_failed"
