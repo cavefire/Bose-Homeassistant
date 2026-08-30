@@ -187,6 +187,15 @@
       },
       "av_sync": {
         "name": "AV Sync"
+      },
+      "surround": {
+        "name": "Rear Speakers Gain"
+      },
+      "midrange": {
+        "name": "Midrange"
+      },
+      "system_surround_level": {
+        "name": "Surround"
       }
     }
   },

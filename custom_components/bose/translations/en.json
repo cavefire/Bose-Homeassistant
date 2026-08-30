@@ -153,6 +153,12 @@
             },
             "treble": {
                 "name": "Treble"
+            },
+            "midrange": {
+                "name": "Midrange"
+            },
+            "system_surround_level": {
+                "name": "Surround"
             }
         },
         "select": {
