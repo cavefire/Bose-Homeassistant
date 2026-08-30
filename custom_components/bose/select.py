@@ -14,7 +14,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 from .entity import BoseBaseEntity
 
 HUMINZED_OPTIONS = {
@@ -114,6 +114,7 @@ class BoseBaseSelect(BoseBaseEntity, SelectEntity):
         await getattr(self.speaker, self._set_method)(option)
 
     def _parse_audio_mode(self, data, mode_type):
+        self._attr_available = True
         selected_audio = data.get(self._value_key)
         supported = data.get("properties", {}).get(self._supported_key, [])
         self._attr_options = [
@@ -137,7 +138,17 @@ class BoseBaseSelect(BoseBaseEntity, SelectEntity):
 
     async def async_update(self) -> None:
         """Fetch the current audio mode."""
-        data = await getattr(self.speaker, self._get_method)()
+        try:
+            data = await getattr(self.speaker, self._get_method)()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug(
+                "Cannot read %s from the speaker", self._resource_path, exc_info=True
+            )
+            if self._attr_available:
+                self._attr_available = False
+                if self.hass:
+                    self.async_write_ha_state()
+            return
         self._parse_audio_mode(data, self._mode_class)
 
 

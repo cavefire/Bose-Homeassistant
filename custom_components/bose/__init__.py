@@ -18,7 +18,13 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ServiceValidationErr
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
-from .const import _LOGGER, DOMAIN, TOKEN_REFRESH_DELAY, TOKEN_RETRY_DELAY
+from .const import (
+    _LOGGER,
+    DOMAIN,
+    REQUEST_TIMEOUT,
+    TOKEN_REFRESH_DELAY,
+    TOKEN_RETRY_DELAY,
+)
 from .coordinator import BoseCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -528,7 +534,9 @@ async def connect_to_bose(
     """Connect to the Bose speaker."""
     data = config_entry.data
 
-    speaker = BoseSpeaker(host=data["ip"], bose_auth=auth)
+    speaker = BoseSpeaker(
+        host=data["ip"], bose_auth=auth, request_timeout=REQUEST_TIMEOUT
+    )
 
     try:
         await speaker.connect()
