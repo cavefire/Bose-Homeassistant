@@ -15,10 +15,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import _LOGGER, DOMAIN
 from .entity import BoseBaseEntity
 
-# pybose waits for a response forever, and a speaker stays quiet about resources it does not implement.
-REQUEST_TIMEOUT = 10
-# Speakers do not always list every sound setting they support, so the missing ones are still tried once. 
-# That probe is what runs into the silence above, so it gets a shorter leash to keep set-up quick.
+# Speakers do not always list every sound setting they support, so the missing ones are still tried once.
+# A speaker stays quiet about a setting it does not have, so that probe gets a shorter timeout than usual to keep set-up quick.
 PROBE_TIMEOUT = 5
 
 # The sound settings that are sliders. Which of these a speaker actually has,
@@ -59,10 +57,12 @@ async def read_setting(speaker: BoseSpeaker, option: str) -> Audio | None:
     resource = f"/audio/{option}"
     advertised = speaker.has_capability(resource)
     try:
-        async with asyncio.timeout(REQUEST_TIMEOUT if advertised else PROBE_TIMEOUT):
-            audio = await speaker._request(  # noqa: SLF001
-                resource, "GET", checkCapabilities=False
-            )
+        audio = await speaker._request(  # noqa: SLF001
+            resource,
+            "GET",
+            checkCapabilities=False,
+            timeout=None if advertised else PROBE_TIMEOUT,
+        )
     except Exception:  # noqa: BLE001
         _LOGGER.debug("Speaker has no %s", resource, exc_info=True)
         return None
@@ -193,13 +193,12 @@ class BoseAudioSlider(BoseBaseEntity, NumberEntity):
                 exc_info=True,
             )
             try:
-                async with asyncio.timeout(REQUEST_TIMEOUT):
-                    await self.speaker._request(  # noqa: SLF001
-                        self._path,
-                        "POST",
-                        {"value": int(value)},
-                        checkCapabilities=False,
-                    )
+                await self.speaker._request(  # noqa: SLF001
+                    self._path,
+                    "POST",
+                    {"value": int(value)},
+                    checkCapabilities=False,
+                )
             except Exception as e:
                 _LOGGER.error(
                     "Failed to set audio setting %s to %s: %s",

@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector, translation as translation_helper
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN
+from .const import _LOGGER, CONF_CHROMECAST_AUTO_ENABLE, DOMAIN, REQUEST_TIMEOUT
 
 
 async def Discover_Bose_Devices(hass: HomeAssistant):
@@ -181,7 +181,9 @@ class BoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _get_device_info(self, mail, password, ip):
         """Get the device info."""
         try:
-            speaker = BoseSpeaker(bose_auth=self._auth, host=ip)  # pyright: ignore[reportArgumentType]
+            speaker = BoseSpeaker(  # pyright: ignore[reportArgumentType]
+                bose_auth=self._auth, host=ip, request_timeout=REQUEST_TIMEOUT
+            )
             await speaker.connect()
             system_info = await speaker.get_system_info()
             if not system_info:

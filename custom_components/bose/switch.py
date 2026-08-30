@@ -97,11 +97,22 @@ class BoseAccessorySwitch(BoseBaseEntity, SwitchEntity):
         """Parse the accessories data."""
         enabled = data.get("enabled", {}) if data else {}
         self._attr_is_on = enabled.get(self._attribute, False) if enabled else False
+        self._attr_available = True
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
         """Update the switch state."""
-        self._parse_accessories(await self.speaker.get_accessories())
+        try:
+            accessories = await self.speaker.get_accessories()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug(
+                "Cannot read the accessory state from the speaker", exc_info=True
+            )
+            if self._attr_available:
+                self._attr_available = False
+                self.async_write_ha_state()
+            return
+        self._parse_accessories(accessories)
 
 
 class BoseSubwooferSwitch(BoseAccessorySwitch):
@@ -165,6 +176,7 @@ class BoseStandbySettingSwitch(BoseBaseEntity, SwitchEntity):
         if data.get("header", {}).get("resource") == "/system/power/timeouts":
             result: SystemTimeout = data.get("body")
             self._attr_is_on = result.get("noAudio", False)
+            self._attr_available = True
             self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
@@ -179,7 +191,16 @@ class BoseStandbySettingSwitch(BoseBaseEntity, SwitchEntity):
 
     async def async_update(self) -> None:
         """Update the switch state."""
-        self._attr_is_on = (await self.speaker.get_system_timeout()).get(
-            "noAudio", False
-        )
+        try:
+            timeouts = await self.speaker.get_system_timeout()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug(
+                "Cannot read the standby setting from the speaker", exc_info=True
+            )
+            if self._attr_available:
+                self._attr_available = False
+                self.async_write_ha_state()
+            return
+        self._attr_is_on = timeouts.get("noAudio", False)
+        self._attr_available = True
         self.async_write_ha_state()
