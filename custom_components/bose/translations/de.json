@@ -193,6 +193,12 @@
       },
       "av_sync": {
         "name": "AV‑Sync"
+      },
+      "midrange": {
+        "name": "Mitten"
+      },
+      "system_surround_level": {
+        "name": "Surround"
       }
     }
   },
