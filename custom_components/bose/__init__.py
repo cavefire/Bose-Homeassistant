@@ -15,7 +15,11 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
-from homeassistant.exceptions import ConfigEntryAuthFailed, ServiceValidationError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    ServiceValidationError,
+)
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from . import config_flow
@@ -95,10 +99,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
             f"Authentication required for {config_entry.data.get('mail')}"
         )
 
-    hass.async_create_background_task(
-        refresh_token_thread(hass, config_entry, auth), "Refresh token"
-    )
-
     speaker = await connect_to_bose(hass, config_entry, auth)
 
     if not speaker:
@@ -119,10 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                 break
 
         if not found:
-            _LOGGER.error(
-                "Failed to connect to Bose speaker. No new ip was found, so assuming the device is offline"
+            raise ConfigEntryNotReady(
+                f"Cannot reach the Bose speaker at {config_entry.data['ip']} and it was not discovered under another address"
             )
-            return False
 
         new_entry = hass.config_entries.async_get_entry(config_entry.entry_id)
         if new_entry is None:
@@ -132,13 +131,23 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         speaker = await connect_to_bose(hass, config_entry, auth)
 
     if speaker is None:
-        _LOGGER.error("Speaker object is None, cannot retrieve system info")
-        return False
+        raise ConfigEntryNotReady(
+            f"Cannot reach the Bose speaker at {config_entry.data['ip']}"
+        )
 
-    system_info = await speaker.get_system_info()
-    capabilities = await speaker.get_capabilities()
+    try:
+        system_info = await speaker.get_system_info()
+        capabilities = await speaker.get_capabilities()
+        await speaker.subscribe()
+    except Exception as err:
+        await speaker.disconnect()
+        raise ConfigEntryNotReady(
+            f"The Bose speaker at {config_entry.data['ip']} did not answer during setup: {err}"
+        ) from err
 
-    await speaker.subscribe()
+    hass.async_create_background_task(
+        refresh_token_thread(hass, config_entry, auth), "Refresh token"
+    )
 
     # Register device in Home Assistant
     device_registry = dr.async_get(hass)

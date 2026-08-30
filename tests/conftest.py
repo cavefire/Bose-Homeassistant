@@ -133,9 +133,15 @@ class FakeHass:
     def __init__(self) -> None:
         """Initialize the fake hass."""
         self.tasks: list[Any] = []
+        self.data: dict[str, Any] = {}
 
     def async_create_task(self, coro, *args, **kwargs) -> None:
         """Swallow the start-up refresh so tests can drive it explicitly."""
+        coro.close()
+
+    def async_create_background_task(self, coro, name, *args, **kwargs) -> None:
+        """Record long-running work instead of starting it."""
+        self.tasks.append(name)
         coro.close()
 
 
