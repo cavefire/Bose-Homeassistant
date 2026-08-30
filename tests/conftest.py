@@ -149,3 +149,22 @@ def speaker() -> FakeSpeaker:
 def hass() -> FakeHass:
     """Return a fake Home Assistant instance."""
     return FakeHass()
+
+
+@pytest.fixture
+def tv_now_playing() -> dict:
+    """Now playing as reported while the TV input is active."""
+    return {
+        "source": {"sourceID": "PRODUCT", "sourceDisplayName": "TV"},
+        "container": {"contentItem": {"source": "PRODUCT", "sourceAccount": "TV"}},
+        "state": {"status": "PLAY"},
+    }
+
+
+@pytest.fixture
+def bluetooth_now_playing() -> dict:
+    """Now playing as reported while a Bluetooth device streams."""
+    return {
+        "source": {"sourceID": "BLUETOOTH", "sourceDisplayName": "Bluetooth"},
+        "state": {"status": "PLAY"},
+    }
