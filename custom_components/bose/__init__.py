@@ -569,17 +569,66 @@ async def registerAccessories(
 async def connect_to_bose(
     hass: HomeAssistant, config_entry: ConfigEntry, auth: BoseAuth
 ):
-    """Connect to the Bose speaker."""
+    """Connect to the Bose speaker.
+
+    If connecting fails because the stored JWT has expired, refresh the token
+    using the stored Azure refresh token and retry once. This prevents setup
+    from deadlocking on an expired token (otherwise the reauth prompt never
+    appears because the refresh loop only starts after a successful connect).
+    """
     data = config_entry.data
 
-    speaker = BoseSpeaker(
-        host=data["ip"], bose_auth=auth, request_timeout=REQUEST_TIMEOUT
-    )
+    async def attempt() -> BoseSpeaker | None:
+        speaker = BoseSpeaker(
+            host=data["ip"], bose_auth=auth, request_timeout=REQUEST_TIMEOUT
+        )
+        try:
+            await speaker.connect()
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.error(
+                "Failed to connect to Bose speaker (IP: %s): %s", data["ip"], e
+            )
+            return None
+        return speaker
 
+    speaker = await attempt()
+    if speaker is not None:
+        return speaker
+
+    # Connection failed. If it is an expired JWT, refresh the token using the
+    # stored Azure refresh token (no password needed) and retry once.
     try:
-        await speaker.connect()
+        auth.set_access_token(
+            data["access_token"],
+            data["refresh_token"],
+            data["bose_person_id"],
+        )
+        auth.set_azure_refresh_token(data["azure_refresh_token"])
+        await hass.async_add_executor_job(auth.do_token_refresh)
     except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Failed to connect to Bose speaker (IP: %s): %s", data["ip"], e)
+        _LOGGER.warning("Could not refresh Bose token for %s: %s", data["ip"], e)
         return None
 
-    return speaker
+    new_token = auth.getCachedToken()
+    azure_refresh_token = auth.get_azure_refresh_token()
+    if not new_token or not azure_refresh_token:
+        _LOGGER.warning(
+            "Bose token refresh did not produce a usable token for %s", data["ip"]
+        )
+        return None
+
+    hass.config_entries.async_update_entry(
+        config_entry,
+        data={
+            **config_entry.data,
+            "access_token": new_token["access_token"],
+            "refresh_token": new_token["refresh_token"],
+            "azure_refresh_token": azure_refresh_token,
+        },
+    )
+
+    _LOGGER.info("Refreshed expired Bose token for %s, retrying connection", data["ip"])
+
+    data = config_entry.data
+
+    return await attempt()

@@ -52,8 +52,6 @@ class BoseBatteryBase:
         self.speaker.attach_receiver(self._parse_message)
         self.hass = hass
 
-        hass.async_create_task(self.async_update())
-
     def _parse_message(self, data):
         """Parse real-time messages from the speaker."""
         if data.get("header", {}).get("resource") == "/system/battery":
@@ -66,14 +64,20 @@ class BoseBatteryBase:
         )
 
     async def async_update(self) -> None:
-        """Fetch the latest battery status."""
+        """Fetch the latest battery status.
+
+        This is the standard Entity update hook. Do NOT call
+        async_write_ha_state() here: Home Assistant writes the state itself
+        after this returns, and calling it manually (e.g. while
+        update_before_add is in flight, before the entity_id is assigned)
+        raises NoEntitySpecifiedError.
+        """
         if not getattr(self, "hass", None):
             return
         try:
             battery_data = await self.coordinator.get_battery_status()
             battery_status = Battery(battery_data)
             self.update_from_battery_status(battery_status)
-            self.async_write_ha_state()
         except Exception:  # noqa: BLE001
             _LOGGER.exception(
                 "Error updating battery status for %s", self.config_entry.data["ip"]
