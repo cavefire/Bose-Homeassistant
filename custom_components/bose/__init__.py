@@ -89,6 +89,12 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
         # Set Azure refresh token which is required for token refresh
         auth.set_azure_refresh_token(config_entry.data["azure_refresh_token"])
+
+        # Check if the access token is still valid; if expired, refresh it first
+        if not auth.is_token_valid():
+            _LOGGER.info("Bose access token is expired, refreshing via Azure B2C...")
+            if not await refresh_token(hass, config_entry, auth):
+                raise ConfigEntryAuthFailed("Bose token expired and refresh failed")
     else:
         # Missing tokens - trigger reauthentication
         _LOGGER.warning(
