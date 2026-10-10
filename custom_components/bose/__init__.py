@@ -248,9 +248,10 @@ async def refresh_token_thread(
             auth.get_token_validity_time() > 2 * TOKEN_REFRESH_DELAY
         ):  # when token is valid for more than 2 * refresh-delay ...
             _LOGGER.debug(
-                "Sleeping for %s seconds before refreshing", TOKEN_REFRESH_DELAY
+                "Token still valid, checking again in %s seconds", TOKEN_REFRESH_DELAY
             )  # wait for 1 x refresh-delay before checking again
             await asyncio.sleep(TOKEN_REFRESH_DELAY)
+            continue
         _LOGGER.info("Refreshing token for %s", config_entry.data["mail"])
         try:
             if not await refresh_token(hass, config_entry, auth):
