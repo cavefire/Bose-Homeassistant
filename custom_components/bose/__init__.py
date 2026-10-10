@@ -89,6 +89,20 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
         # Set Azure refresh token which is required for token refresh
         auth.set_azure_refresh_token(config_entry.data["azure_refresh_token"])
+
+        # The speaker rejects an expired token, and the periodic refresh only
+        # starts after a successful setup, so refresh an expired token first.
+        if not auth.is_token_valid():
+            _LOGGER.info(
+                "Access token for %s has expired, refreshing it",
+                config_entry.data["mail"],
+            )
+            # refresh_token raises ConfigEntryAuthFailed if the refresh token
+            # was rejected; any other failure is retried later.
+            if not await refresh_token(hass, config_entry, auth):
+                raise ConfigEntryNotReady(
+                    f"Could not refresh the expired access token for {config_entry.data['mail']}"
+                )
     else:
         # Missing tokens - trigger reauthentication
         _LOGGER.warning(
