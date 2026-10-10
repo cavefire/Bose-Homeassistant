@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from pybose.BoseAuth import BoseAuth
+from pybose.BoseAuth import BoseAuth, BoseAuthRejectedError
 from pybose.BoseResponse import Accessories, NetworkStateEnum
 from pybose.BoseSpeaker import BoseSpeaker
 
@@ -309,21 +309,20 @@ async def refresh_token(hass: HomeAssistant, config_entry: ConfigEntry, auth: Bo
                 "Token is valid for %s seconds", auth.get_token_validity_time()
             )
             return True
-    except Exception as e:
-        error_msg = str(e)
-        _LOGGER.error(
-            "Failed to refresh token for %s: %s", config_entry.data["mail"], error_msg
+    except BoseAuthRejectedError as e:
+        _LOGGER.warning(
+            "Refresh token invalid for %s, triggering reauthentication flow: %s",
+            config_entry.data["mail"],
+            e,
         )
-
-        # Check if this is an authentication error that requires reauthentication
-        if "refresh token" in error_msg.lower() or "azure" in error_msg.lower():
-            _LOGGER.warning(
-                "Refresh token invalid for %s, triggering reauthentication flow",
-                config_entry.data["mail"],
-            )
-            raise ConfigEntryAuthFailed(
-                f"Refresh token invalid for {config_entry.data['mail']}"
-            ) from e
+        raise ConfigEntryAuthFailed(
+            f"Refresh token invalid for {config_entry.data['mail']}"
+        ) from e
+    except Exception as e:  # noqa: BLE001
+        # Bose unreachable or failing; the caller retries later.
+        _LOGGER.error(
+            "Failed to refresh token for %s: %s", config_entry.data["mail"], e
+        )
     return False
 
 
