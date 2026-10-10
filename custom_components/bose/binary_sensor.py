@@ -23,11 +23,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up Bose battery sensor if supported."""
     speaker = hass.data[DOMAIN][config_entry.entry_id]["speaker"]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
     if speaker.has_capability("/system/battery"):
         async_add_entities(
             [
-                BoseBatteryChargingSensor(speaker, None, config_entry, hass),
+                BoseBatteryChargingSensor(speaker, None, config_entry, hass, coordinator),
             ],
         )
 
@@ -41,11 +42,12 @@ class BoseBatteryChargingSensor(BoseBaseEntity, BoseBatteryBase, BinarySensorEnt
         battery_status: Battery | None,
         config_entry: ConfigEntry,
         hass: HomeAssistant,
+        coordinator,
     ) -> None:
         """Initialize charging state sensor."""
         # Initialize base entity and battery base
         BoseBaseEntity.__init__(self, speaker)
-        BoseBatteryBase.__init__(self, speaker, config_entry, hass)
+        BoseBatteryBase.__init__(self, speaker, config_entry, hass, coordinator)
         self._attr_translation_key = "charging_state"
         self._attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
 
