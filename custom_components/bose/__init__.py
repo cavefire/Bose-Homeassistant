@@ -184,7 +184,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
                     connections.add((dr.CONNECTION_NETWORK_MAC, formatted_mac))
                 break
 
-    device_registry.async_get_or_create(
+    speaker_device = device_registry.async_get_or_create(
         config_entry_id=config_entry.entry_id,
         identifiers=identifiers,
         connections=connections,
@@ -212,7 +212,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     try:
         # Not all Devices have accessories like "Bose Portable Smart Speaker"
         accessories = await speaker.get_accessories()
-        await registerAccessories(hass, config_entry, accessories)
+        await registerAccessories(
+            hass, config_entry, accessories, speaker_device.id
+        )
     except Exception:  # noqa: BLE001
         accessories = []
     hass.data[DOMAIN][config_entry.entry_id]["accessories"] = accessories
@@ -546,9 +548,12 @@ def setup(hass: HomeAssistant, config: ConfigEntry) -> bool:
 
 
 async def registerAccessories(
-    hass: HomeAssistant, config_entry, accessories: Accessories
+    hass: HomeAssistant,
+    config_entry,
+    accessories: Accessories,
+    speaker_device_id: str,
 ):
-    """Register accessories in Home Assistant."""
+    """Register accessories in Home Assistant, linked to the speaker's device."""
     device_registry = dr.async_get(hass)
 
     subs = accessories.get("subs") or []
@@ -566,8 +571,11 @@ async def registerAccessories(
     else:
         rears = [rears_raw]
 
+    # Linked with async_update_device: the via_device parameter of
+    # async_get_or_create is deprecated, and its via_device_id replacement
+    # only exists since Home Assistant 2026.8.
     for accessory in list(subs) + rears:
-        device_registry.async_get_or_create(
+        device = device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers={(DOMAIN, accessory.get("serialnum", "N/A"))},
             serial_number=accessory.get("serialnum", "N/A"),
@@ -575,8 +583,11 @@ async def registerAccessories(
             name=accessory.get("type", "").replace("_", " "),
             model=accessory.get("type", "").replace("_", " "),
             sw_version=accessory.get("version", "N/A"),
-            via_device=(DOMAIN, config_entry.data["guid"]),
         )
+        if device.via_device_id != speaker_device_id:
+            device_registry.async_update_device(
+                device.id, via_device_id=speaker_device_id
+            )
 
 
 async def connect_to_bose(
