@@ -111,3 +111,49 @@ def test_requires_pybose_with_refresh_error_types():
     """The manifest pins a pybose release that reports why a refresh failed."""
     assert issubclass(BoseAuthRejectedError, ValueError)
     assert bose.BoseAuthRejectedError is BoseAuthRejectedError
+
+
+class StopLoop(Exception):
+    """Ends the refresh loop after a number of sleeps."""
+
+
+async def _run_refresh_loop(monkeypatch, validity_times, sleeps=3):
+    """Run refresh_token_thread until it slept `sleeps` times; return the refreshes."""
+    refreshes = []
+    slept = []
+
+    async def fake_sleep(seconds):
+        slept.append(seconds)
+        if len(slept) >= sleeps:
+            raise StopLoop
+
+    async def fake_refresh(hass, entry, auth):
+        refreshes.append(True)
+        return True
+
+    validity = iter(validity_times)
+    auth = SimpleNamespace(get_token_validity_time=lambda: next(validity))
+    monkeypatch.setattr(bose.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(bose, "refresh_token", fake_refresh)
+
+    with pytest.raises(StopLoop):
+        await bose.refresh_token_thread(RefreshHass(), _entry(), auth)
+    return refreshes, slept
+
+
+async def test_valid_token_is_not_refreshed_by_the_loop(monkeypatch):
+    """A token valid for many hours is only checked again, not refreshed (issue #109)."""
+    refreshes, slept = await _run_refresh_loop(monkeypatch, [8 * 3600] * 10)
+
+    assert refreshes == []
+    assert slept == [bose.TOKEN_REFRESH_DELAY] * 3
+
+
+async def test_token_close_to_expiry_is_refreshed_by_the_loop(monkeypatch):
+    """A token valid for less than two refresh delays is refreshed right away."""
+    refreshes, slept = await _run_refresh_loop(
+        monkeypatch, [3600, 8 * 3600, 8 * 3600, 8 * 3600], sleeps=2
+    )
+
+    assert refreshes == [True]
+    assert slept == [bose.TOKEN_RETRY_DELAY, bose.TOKEN_REFRESH_DELAY]
