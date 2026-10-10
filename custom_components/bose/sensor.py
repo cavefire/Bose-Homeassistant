@@ -16,7 +16,7 @@ from pybose import BoseSpeaker
 from .bose.battery import BoseBatteryBase
 from .bose.network import BoseNetworkBase
 from .bose.wifi import BoseWifiBase
-from .const import DOMAIN
+from .const import _LOGGER, DOMAIN
 from .entity import BoseBaseEntity
 
 
@@ -41,15 +41,16 @@ async def async_setup_entry(
         )
 
     if speaker.has_capability("/network/status"):
-        entities.extend(
-            [
-                BoseNetworkTypeSensor(speaker, config_entry, hass, coordinator),
-                BoseNetworkIpSensor(speaker, config_entry, hass, coordinator),
-            ]
-        )
-
         try:
             network_data = await coordinator.get_network_status()
+            # Only add the network sensors if the speaker lets us read the
+            # status; some refuse it ("User not authorized for LAN").
+            entities.extend(
+                [
+                    BoseNetworkTypeSensor(speaker, config_entry, hass, coordinator),
+                    BoseNetworkIpSensor(speaker, config_entry, hass, coordinator),
+                ]
+            )
             network_status = NetworkStatus(network_data)
             primary_name = network_status.get("primary")
 
@@ -67,8 +68,10 @@ async def async_setup_entry(
                         BoseWifiSsidSensor(speaker, config_entry, hass, coordinator),
                     ]
                 )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug(
+                "Not adding network sensors for %s: %s", config_entry.data["ip"], err
+            )
 
     if entities:
         async_add_entities(entities, update_before_add=True)

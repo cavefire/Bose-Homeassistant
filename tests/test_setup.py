@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import bose
 from bose import async_setup_entry
 import jwt
+from pybose.BoseSpeaker import BoseRequestException
 import pytest
 
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
@@ -182,3 +183,99 @@ async def test_valid_token_is_not_refreshed(monkeypatch):
 
     with pytest.raises(ConfigEntryNotReady):
         await async_setup_entry(_hass(), _entry())
+
+
+class NetworkStatusSpeaker:
+    """A connected speaker that describes itself, with a given network status."""
+
+    def __init__(self, network_status) -> None:
+        """Answer /network/status with the given body or exception."""
+        self.network_status = network_status
+
+    async def get_system_info(self):
+        """Describe the speaker."""
+        return {
+            "name": "Living Room",
+            "productName": "Bose Smart Soundbar 900",
+            "serialNumber": "S1",
+            "softwareVersion": "15.0.40",
+        }
+
+    async def get_capabilities(self):
+        """Return the capabilities."""
+        return {}
+
+    async def subscribe(self):
+        """Subscribe to updates."""
+
+    def has_capability(self, resource):
+        """Support /network/status."""
+        return resource == "/network/status"
+
+    async def get_network_status(self):
+        """Return or raise the configured network status."""
+        if isinstance(self.network_status, Exception):
+            raise self.network_status
+        return self.network_status
+
+
+class FakeDeviceRegistry:
+    """Record the speaker's device."""
+
+    def __init__(self) -> None:
+        """Start empty."""
+        self.created = []
+
+    def async_get_or_create(self, **kwargs):
+        """Record the device."""
+        self.created.append(kwargs)
+        return SimpleNamespace(id="speaker-device")
+
+
+class SetupDone(Exception):
+    """Raised once setup got past registering the speaker's device."""
+
+
+async def _setup_until_device_registered(monkeypatch, network_status):
+    speaker = NetworkStatusSpeaker(network_status)
+    registry = FakeDeviceRegistry()
+
+    async def connects(hass, entry, auth):
+        return speaker
+
+    def stop(*args, **kwargs):
+        raise SetupDone
+
+    monkeypatch.setattr(bose, "connect_to_bose", connects)
+    monkeypatch.setattr(bose.dr, "async_get", lambda hass: registry)
+    monkeypatch.setattr(bose, "BoseCoordinator", stop)
+
+    with pytest.raises(SetupDone):
+        await async_setup_entry(_hass(), _entry())
+    return registry.created
+
+
+async def test_unauthorized_network_status_does_not_fail_setup(monkeypatch):
+    """A speaker refusing /network/status is set up without its MAC (issue #112)."""
+    refused = BoseRequestException(
+        "GET", "/network/status", {}, 403, 0, "User not authorized for LAN"
+    )
+
+    [device] = await _setup_until_device_registered(monkeypatch, refused)
+
+    assert device["connections"] == set()
+    assert device["model"] == "Bose Smart Soundbar 900"
+
+
+async def test_network_status_provides_the_mac_address(monkeypatch):
+    """The MAC address of the primary interface is still registered."""
+    status = {
+        "primary": "WIRELESS",
+        "interfaces": [
+            {"type": "WIRELESS", "state": "UP", "macAddress": "AA:BB:CC:DD:EE:FF"}
+        ],
+    }
+
+    [device] = await _setup_until_device_registered(monkeypatch, status)
+
+    assert device["connections"] == {("mac", "aa:bb:cc:dd:ee:ff")}
