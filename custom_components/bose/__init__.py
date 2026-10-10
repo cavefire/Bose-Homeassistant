@@ -5,7 +5,7 @@ import json
 
 from pybose.BoseAuth import BoseAuth, BoseAuthRejectedError
 from pybose.BoseResponse import Accessories, NetworkStateEnum
-from pybose.BoseSpeaker import BoseSpeaker
+from pybose.BoseSpeaker import BoseRequestException, BoseSpeaker
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
@@ -170,7 +170,18 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     connections = set()
 
     if speaker.has_capability("/network/status"):
-        network_status = await speaker.get_network_status()
+        try:
+            network_status = await speaker.get_network_status()
+        except BoseRequestException as err:
+            # Some speakers refuse this to some accounts ("User not authorized
+            # for LAN"). It only provides the MAC address, so carry on without.
+            _LOGGER.warning(
+                "Cannot read the network status of the Bose speaker at %s, "
+                "registering it without its MAC address: %s",
+                config_entry.data["ip"],
+                err,
+            )
+            network_status = {}
 
         primary_name = network_status.get("primary")
         for interface in network_status.get("interfaces", []):
