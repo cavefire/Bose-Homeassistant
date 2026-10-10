@@ -2,7 +2,8 @@
 
 from types import SimpleNamespace
 
-from bose import async_migrate_unique_id
+import bose
+from bose import async_migrate_unique_id, registerAccessories
 from bose.const import DOMAIN
 
 
@@ -73,3 +74,68 @@ def test_duplicate_legacy_entry_is_not_given_the_same_unique_id():
 def test_domain_is_used_for_the_lookup():
     """Sanity check the helper looks in our own domain."""
     assert DOMAIN == "bose"
+
+
+class FakeDeviceRegistry:
+    """Just enough of the device registry for registering accessories."""
+
+    def __init__(self) -> None:
+        """Start empty."""
+        self.created = []
+        self.updates = []
+        self.devices = {}
+
+    def async_get_or_create(self, **kwargs):
+        """Create or return an accessory device."""
+        self.created.append(kwargs)
+        serial = next(iter(kwargs["identifiers"]))[1]
+        return self.devices.setdefault(
+            serial, SimpleNamespace(id=f"device-{serial}", via_device_id=None)
+        )
+
+    def async_update_device(self, device_id, **changes):
+        """Record the update."""
+        self.updates.append((device_id, changes))
+        for device in self.devices.values():
+            if device.id == device_id:
+                device.via_device_id = changes["via_device_id"]
+
+
+ACCESSORIES = {
+    "subs": [{"serialnum": "SUB1", "type": "BASS_MODULE_700", "version": "1"}],
+    "rears": [{"serialnum": "REAR1", "type": "SURROUND_SPEAKERS", "version": "1"}],
+}
+
+
+async def _register(monkeypatch, registry):
+    monkeypatch.setattr(bose.dr, "async_get", lambda hass: registry)
+    entry = SimpleNamespace(entry_id="e1", data={"guid": "guid-1"})
+    await registerAccessories(SimpleNamespace(), entry, ACCESSORIES, "speaker-device")
+
+
+async def test_accessories_are_linked_to_the_speaker(monkeypatch):
+    """Accessories are linked without the deprecated via_device (issue #108)."""
+    registry = FakeDeviceRegistry()
+
+    await _register(monkeypatch, registry)
+
+    assert [next(iter(c["identifiers"])) for c in registry.created] == [
+        (DOMAIN, "SUB1"),
+        (DOMAIN, "REAR1"),
+    ]
+    assert all("via_device" not in c for c in registry.created)
+    assert registry.updates == [
+        ("device-SUB1", {"via_device_id": "speaker-device"}),
+        ("device-REAR1", {"via_device_id": "speaker-device"}),
+    ]
+
+
+async def test_accessories_already_linked_are_not_updated(monkeypatch):
+    """Registering again does not rewrite an existing link."""
+    registry = FakeDeviceRegistry()
+
+    await _register(monkeypatch, registry)
+    registry.updates.clear()
+    await _register(monkeypatch, registry)
+
+    assert registry.updates == []
